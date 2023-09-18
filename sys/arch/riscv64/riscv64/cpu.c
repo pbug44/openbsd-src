@@ -40,6 +40,12 @@
 #define CPU_ARCH_U5		0x0000000000000001
 #define CPU_ARCH_U7		0x8000000000000007
 
+#define CPU_VENDOR_THEAD	0x5b7
+
+#define CPU_ARCH_THEAD_C906	0x0000000000000000
+#define CPU_ARCH_THEAD_TH1520	0x0			/* XuanTie C910 */
+
+
 /* Architectures */
 struct arch {
 	uint64_t	id;
@@ -56,6 +62,12 @@ struct arch cpu_arch_sifive[] = {
 	{ 0, NULL }
 };
 
+struct arch cpu_arch_thead[] = {
+	{ CPU_ARCH_THEAD_C906, "C906" },
+	{ CPU_ARCH_THEAD_TH1520, "C910" },
+	{ 0, NULL }
+};
+
 /* Vendors */
 const struct vendor {
 	uint32_t	id;
@@ -63,6 +75,7 @@ const struct vendor {
 	struct arch	*archlist;
 } cpu_vendors[] = {
 	{ CPU_VENDOR_SIFIVE, "SiFive", cpu_arch_sifive },
+	{ CPU_VENDOR_THEAD, "T-Head", cpu_arch_thead },
 	{ 0, NULL }
 };
 

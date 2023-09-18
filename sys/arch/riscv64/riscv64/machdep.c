@@ -560,6 +560,14 @@ initriscv(struct riscv_bootparams *rbp)
 	/* Set the per-CPU pointer. */
 	__asm volatile("mv tp, %0" :: "r"(&cpu_info_primary));
 
+#if MANGOPI
+	printf("rbp->kern_phys=%lX, KERNBASE=%lX, rpb->kern_l1pt=%lX,"
+		"rbp->dtbp_phys=%lX, rbp->dtbp_virt=%lX, rbp->kern_stack=%lX\n", 
+		rbp->kern_phys, KERNBASE, rbp->kern_l1pt, rbp->dtbp_phys,
+		rbp->dtbp_virt, rbp->dtbp_phys);	
+#endif
+
+
 	if (!fdt_init(config) || fdt_get_size(config) == 0)
 		panic("initriscv: no FDT");
 	fdt_size = fdt_get_size(config);
@@ -669,6 +677,8 @@ initriscv(struct riscv_bootparams *rbp)
 
 		physmem += atop(ramend - ramstart);
 	}
+
+
 
 	/* The bootloader has loaded us into a 64MB block. */
 	memstart = rbp->kern_phys;

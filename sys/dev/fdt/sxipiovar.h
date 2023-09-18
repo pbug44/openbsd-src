@@ -25,7 +25,7 @@ struct sxipio_func {
 struct sxipio_pin {
 	const char *name;
 	int port, pin;
-	struct sxipio_func funcs[8];
+	struct sxipio_func funcs[16];
 };
 
 #define SXIPIO_PORT_A	0

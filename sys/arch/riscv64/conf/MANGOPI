@@ -3,7 +3,7 @@
 machine		riscv64
 maxusers	4
 
-#option		MANGOPI
+option		MANGOPI
 option		DEBUG
 option		PCIVERBOSE
 option		USBVERBOSE

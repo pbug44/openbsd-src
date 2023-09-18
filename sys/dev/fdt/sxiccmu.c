@@ -108,6 +108,12 @@ uint32_t sxiccmu_r40_get_frequency(struct sxiccmu_softc *, uint32_t);
 int	sxiccmu_r40_set_frequency(struct sxiccmu_softc *, uint32_t, uint32_t);
 uint32_t sxiccmu_v3s_get_frequency(struct sxiccmu_softc *, uint32_t);
 int	sxiccmu_v3s_set_frequency(struct sxiccmu_softc *, uint32_t, uint32_t);
+uint32_t sxiccmu_d1_get_frequency(struct sxiccmu_softc *, uint32_t);
+int	sxiccmu_d1_set_frequency(struct sxiccmu_softc *, uint32_t, uint32_t);
+int	sxiccmu_d1_mmc_set_frequency(struct sxiccmu_softc *, bus_size_t, uint32_t);
+#if 0
+void	sxiccmu_d1_enable(void *, uint32_t *, int);
+#endif
 uint32_t sxiccmu_nop_get_frequency(struct sxiccmu_softc *, uint32_t);
 int	sxiccmu_nop_set_frequency(struct sxiccmu_softc *, uint32_t, uint32_t);
 
@@ -149,7 +155,8 @@ sxiccmu_match(struct device *parent, void *match, void *aux)
 	    OF_is_compatible(node, "allwinner,sun50i-a64-r-ccu") ||
 	    OF_is_compatible(node, "allwinner,sun50i-h5-ccu") ||
 	    OF_is_compatible(node, "allwinner,sun50i-h6-ccu") ||
-	    OF_is_compatible(node, "allwinner,sun50i-h6-r-ccu"));
+	    OF_is_compatible(node, "allwinner,sun50i-h6-r-ccu") ||
+	    OF_is_compatible(node, "allwinner,sun20i-d1-ccu"));
 }
 
 void
@@ -276,6 +283,14 @@ sxiccmu_attach(struct device *parent, struct device *self, void *aux)
 		sc->sc_nresets = nitems(sun50i_h6_r_resets);
 		sc->sc_get_frequency = sxiccmu_h6_r_get_frequency;
 		sc->sc_set_frequency = sxiccmu_nop_set_frequency;
+	} else if (OF_is_compatible(node, "allwinner,sun20i-d1-ccu")) {
+		KASSERT(faa->fa_nreg > 0);
+		sc->sc_gates = sun20i_d1_gates;
+		sc->sc_ngates = nitems(sun20i_d1_gates);
+		sc->sc_resets = sun20i_d1_resets;
+		sc->sc_nresets = nitems(sun20i_d1_resets);
+		sc->sc_get_frequency = sxiccmu_d1_get_frequency;
+		sc->sc_set_frequency = sxiccmu_d1_set_frequency;
 	} else {
 		for (node = OF_child(node); node; node = OF_peer(node))
 			sxiccmu_attach_clock(sc, node, faa->fa_nreg);
@@ -336,6 +351,30 @@ void	sxiccmu_gate_enable(void *, uint32_t *, int);
 void	sxiccmu_reset(void *, uint32_t *, int);
 
 const struct sxiccmu_device sxiccmu_devices[] = {
+	{
+		.compat = "allwinner,sun20i-d1-pinctrl",
+		.get_frequency = sxiccmu_gen_get_frequency,
+		.enable = sxiccmu_gate_enable,
+		.reset = sxiccmu_reset
+	},
+	{
+		.compat = "allwinner,sun20i-d1-usb-phy",
+		.get_frequency = sxiccmu_gen_get_frequency,
+		.enable = sxiccmu_gate_enable,
+		.reset = sxiccmu_reset
+	},
+	{
+		.compat = "allwinner,sun20i-d1-de2-clk",
+		.get_frequency = sxiccmu_gen_get_frequency,
+		.enable = sxiccmu_gate_enable,
+		.reset = sxiccmu_reset
+	},
+	{
+		.compat = "allwinner,sun20i-d1-rtc",
+		.get_frequency = sxiccmu_gen_get_frequency,
+		.enable = sxiccmu_gate_enable,
+		.reset = sxiccmu_reset
+	},
 	{
 		.compat = "allwinner,sun4i-a10-osc-clk",
 		.get_frequency = sxiccmu_osc_get_frequency,
@@ -1462,6 +1501,179 @@ sxiccmu_v3s_get_frequency(struct sxiccmu_softc *sc, uint32_t idx)
 	return 0;
 }
 
+#define D1_PLL_CPUX_CTRL_REG			0x0000
+#define D1_PLL_CPUX_ENABLE			(1U << 31)
+#define D1_PLL_CPUX_LDO_EN			(1U << 30)
+#define D1_PLL_CPUX_LOCK_ENABLE			(1U << 29)
+#define D1_PLL_CPUX_LOCK			(1U << 28)
+#define D1_PLL_CPUX_OUTPUT_GATE			(1U << 27)
+#define D1_PLL_CPUX_FACTOR_N(x)			(((x) >> 8) & 0xff)
+#define D1_PLL_CPUX_FACTOR_N_MASK		(0xff << 8)
+#define D1_PLL_CPUX_FACTOR_N_SHIFT		8
+#define D1_PLL_CPUX_FACTOR_M(x)			((x) & 0x3)
+#define D1_PLL_CPUX_FACTOR_M_MASK		0x3
+
+#define D1_PLL_CPUX_DDR0			0x0010
+
+#define D1_PLL_CPUX_PERI			0x0020	
+#define D1_PLL_CPUX_PERI_FACTOR_P0(x)		(((x) >> 16) & 0x3)
+
+#define D1_PLL_CPUX_PERI_FACTOR_N(x)		(((x) >> 8) & 0xff)
+#define D1_PLL_CPUX_PERI_FACTOR_N_SHIFT		8
+#define D1_PLL_CPUX_PERI_FACTOR_N_MASK		0xff
+
+#define D1_PLL_CPUX_AXI_CFG_REG			0x0500
+#define D1_PLL_CPUX_AXI_FACTOR_P(x)		(((x) >> 16) & 0x3)
+#define D1_PLL_CPUX_AXI_FACTOR_P_MASK		(0x3 << 16)
+#define D1_PLL_CPUX_AXI_FACTOR_P_SHIFT		16
+#define D1_PLL_CPUX_AXI_FACTOR_N(x)		(((x) >> 8) & 0x3);
+#define D1_PLL_CPUX_AXI_FACTOR_N_MASK		(0x3 << 8)
+#define D1_PLL_CPUX_AXI_FACTOR_N_SHIFT		8
+#define D1_PLL_CPUX_AXI_FACTOR_M(x)		((x) & 0x3)
+#define D1_PLL_CPUX_AXI_FACTOR_M_MASK		0x3
+#define D1_CPUX_CLK_SRC_SEL			(0x7 << 24)
+#define D1_CPUX_CLK_SRC_SEL_HOSC		0x0
+#define D1_CPUX_CLK_SRC_SEL_CLK32K		0x1
+#define D1_CPUX_CLK_SRC_SEL_CLK16M_RC		0x2
+#define D1_CPUX_CLK_SRC_SEL_PLL_CPUX		0x3
+#define D1_CPUX_CLK_SRC_SEL_PLL_PERI		0x4
+#define D1_CPUX_CLK_SRC_SEL_OSC24M		0x5
+#define D1_CPUX_CLK_SRC_SEL_PLL_PERI2X		0x5
+#define D1_CPUX_CLK_SRC_SEL_800M		0x6
+
+#define D1_PLL_CPUX_PSI_REG			0x510
+#define D1_CPUX_CLK_PSI_SEL(x)			(((x) >> 24) & 0x3)
+#define	D1_CPUX_CLK_PSI_SEL_CLK16M_RC		0x2
+
+#define D1_PLL_CPUX_APB0_REG			0x520
+#define D1_PLL_CPUX_APB1_REG			0x524
+#define D1_PLL_CPUX_APB_SRC_SEL(x)		(((x) >> 24) & 0x3)
+#define D1_CPUX_CLK_APB_SEL_HOSC		0x0
+#define D1_CPUX_CLK_APB_SEL_CLK32K		0x1
+#define D1_CPUX_CLK_APB_SEL_PSICLK		0x2
+#define D1_CPUX_CLK_APB_SEL_PLLPERI1X		0x3
+
+#define D1_SMHC0_CLK_REG			0x0830
+#define D1_SMHC1_CLK_REG			0x0834
+#define D1_SMHC2_CLK_REG			0x0838
+#define D1_SMHC_CLK_SRC_SEL			(0x3 << 24)
+#define D1_SMHC_CLK_SRC_SEL_HOSC		(0x0 << 24)
+#define D1_SMHC_CLK_SRC_SEL_PLL_PERI_1X		(0x1 << 24)
+#define D1_SMHC_CLK_SRC_SEL_PLL_PERI_2X		(0x2 << 24)
+#define D1_SMHC_CLK_SRC_SEL_PLL_AUDIO1		(0x3 << 24)
+#define D1_SMHC_FACTOR_N_MASK			(0x3 << 8)
+#define D1_SMHC_FACTOR_N_SHIFT			8
+#define D1_SMHC_FACTOR_M_MASK			(0xf << 0)
+#define D1_SMHC_FACTOR_M_SHIFT			0
+
+
+uint32_t
+sxiccmu_d1_get_frequency(struct sxiccmu_softc *sc, uint32_t idx)
+{
+	uint32_t parent;
+	uint32_t reg;
+	uint32_t m, n, p;
+	uint32_t basefreq = 0;
+
+	switch (idx) {
+	case D1_CLK_PLL_CPUX:
+		/* XXX should the AXI reg be used here as well? */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+		m = D1_PLL_CPUX_FACTOR_M(reg) + 1;
+		n = D1_PLL_CPUX_FACTOR_N(reg) + 1;
+		/* AXI can be switched dynamically */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+		p = D1_PLL_CPUX_AXI_FACTOR_P(reg) + 1;
+		return ((24000000 * n) / (p));
+	case D1_CLK_CPUX:
+		reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+		switch (reg & D1_CPUX_CLK_SRC_SEL) {
+		case D1_CPUX_CLK_SRC_SEL_HOSC:
+			parent = D1_CLK_HOSC;
+			break;
+		case D1_CPUX_CLK_SRC_SEL_CLK32K:
+			parent = D1_CLK_LOSC;
+			break;
+		case D1_CPUX_CLK_SRC_SEL_OSC24M:
+			parent = D1_CLK_HOSC;
+			break;
+		case D1_CPUX_CLK_SRC_SEL_PLL_CPUX:
+			parent = D1_CLK_PLL_CPUX;
+			break;
+		default:
+			return 0;	/* XXX */
+		}
+
+		return sxiccmu_ccu_get_frequency(sc, &parent);
+		break;
+
+	case D1_CLK_LOSC:
+		return clock_get_frequency(sc->sc_node, "losc");
+
+	case D1_CLK_HOSC:
+		return clock_get_frequency(sc->sc_node, "hosc");
+
+	case D1_CLK_PLL_PERIPH0_2X:
+		basefreq = 24000000;
+
+		/* FALLTHROUGH */
+	case D1_CLK_PLL_PERIPH0:
+		if (basefreq == 0) basefreq = 12000000;
+		reg = SXIREAD4(sc, D1_PLL_CPUX_PERI);
+		n = D1_PLL_CPUX_PERI_FACTOR_N(reg) + 1;
+		p = D1_PLL_CPUX_PERI_FACTOR_P0(reg) + 1;
+		m = 1;
+
+		return (((basefreq * n) / m) / p);
+	case D1_CLK_PSI_AHB:
+		/*
+		 * Same register structure as APB0 and APB1 
+		 * with exception for "(0x2 << 24) CLK16M_RC"
+		 */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_PSI_REG);
+		switch (D1_CPUX_CLK_PSI_SEL(reg)) {
+		case D1_CPUX_CLK_APB_SEL_HOSC:
+			return clock_get_frequency(sc->sc_node, "hosc");
+		case D1_CPUX_CLK_APB_SEL_CLK32K:
+			return 32000;	/* XXX */
+		case D1_CPUX_CLK_PSI_SEL_CLK16M_RC:
+			return (16000000);	/* XXX */
+		case D1_CPUX_CLK_APB_SEL_PLLPERI1X:
+			return (sxiccmu_d1_get_frequency(sc, D1_CLK_PLL_PERIPH0));
+		}
+		break;
+	case D1_CLK_APB0:
+		reg = SXIREAD4(sc, D1_PLL_CPUX_APB0_REG);
+		switch (D1_PLL_CPUX_APB_SRC_SEL(reg)) {
+		case D1_CPUX_CLK_APB_SEL_HOSC:
+			return clock_get_frequency(sc->sc_node, "hosc");
+		case D1_CPUX_CLK_APB_SEL_CLK32K:
+			return 32000;	/* XXX */
+		case D1_CPUX_CLK_APB_SEL_PSICLK:
+			return (sxiccmu_d1_get_frequency(sc, D1_CLK_PSI_AHB));
+		case D1_CPUX_CLK_APB_SEL_PLLPERI1X:
+			return (sxiccmu_d1_get_frequency(sc, D1_CLK_PLL_PERIPH0));
+		}
+		break;
+	case D1_CLK_APB1:
+		reg = SXIREAD4(sc, D1_PLL_CPUX_APB1_REG);
+		switch (D1_PLL_CPUX_APB_SRC_SEL(reg)) {
+		case D1_CPUX_CLK_APB_SEL_HOSC:
+			return clock_get_frequency(sc->sc_node, "hosc");
+		case D1_CPUX_CLK_APB_SEL_CLK32K:
+			return 32000;	/* XXX */
+		case D1_CPUX_CLK_APB_SEL_PSICLK:
+			return (sxiccmu_d1_get_frequency(sc, D1_CLK_PSI_AHB));
+		case D1_CPUX_CLK_APB_SEL_PLLPERI1X:
+			return (sxiccmu_d1_get_frequency(sc, D1_CLK_PLL_PERIPH0));
+		}
+		break;
+	}
+
+	printf("%s: 0x%08x\n", __func__, idx);
+	return 0;
+}
+
 uint32_t
 sxiccmu_nop_get_frequency(struct sxiccmu_softc *sc, uint32_t idx)
 {
@@ -1832,6 +2044,219 @@ sxiccmu_v3s_set_frequency(struct sxiccmu_softc *sc, uint32_t idx, uint32_t freq)
 
 	printf("%s: 0x%08x\n", __func__, idx);
 	return -1;
+}
+
+
+#if 0
+void
+sxiccmu_d1_enable(void *cookie, uint32_t *cells, int on)
+{
+	struct sxiccmu_softc *sc = cookie;
+	uint32_t reg;
+	int n, p;
+
+	/*
+ 	 * XXX CAUTION - In the normal use of PLLs, 
+	 * it is unsuggested to enable and disable the PLLs 
+	 * frequently. Turning on and off the PLLs will cause 
+	 * mutual interference between PLLs, which will affect 
+	 * the stability of the system. When the clock is 
+         * unnecessary, you can write 0 to the PLL_OUTPUT_EN bit 
+	 * of the PLL control register to disable the output gate 
+	 * of the PLL, instead of writing 0 to the Enable bit to 			 * disable the PLL.
+	 */
+
+	p = 1;		/* start off with 1008 Mhz on the safe side */
+	n = 42;		/* 24 MHz * (n / p) == freq */
+
+	/* XXX magic numbers d1-h_user_manual_v1.0.pdf page 68 */
+
+	/* Enable the enable, LDO, and lock bits on all PLLs. */
+	/* CPU */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+	reg &= ~(D1_PLL_CPUX_OUTPUT_GATE);	/* OUTPUT_GATE to 0 */
+	reg |= D1_PLL_CPUX_ENABLE;
+	reg |= D1_PLL_CPUX_LDO_EN;
+	reg |= D1_PLL_CPUX_LOCK_ENABLE;
+	SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+	/* DDR */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_DDR0);
+	reg |= D1_PLL_CPUX_ENABLE;
+	reg |= D1_PLL_CPUX_LDO_EN;
+	reg |= D1_PLL_CPUX_LOCK_ENABLE;
+	SXIWRITE4(sc, D1_PLL_CPUX_DDR0, reg);
+
+	/* PERI */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_PERI);
+	reg |= D1_PLL_CPUX_ENABLE;
+	reg |= D1_PLL_CPUX_LDO_EN;
+	reg |= D1_PLL_CPUX_LOCK_ENABLE;
+	SXIWRITE4(sc, D1_PLL_CPUX_PERI, reg);
+
+	/* Wait for PLL to lock. */		
+	while ((SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG) &
+	    D1_PLL_CPUX_LOCK) == 0) {
+		delay(200);
+	}
+
+	delay(20);
+
+	/* Force PLL_CPUX factor M to 0. */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+	reg &= ~D1_PLL_CPUX_FACTOR_M_MASK;
+	SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+	/* Force the output divider of video PLLs to 0. */
+	/* TBD */
+
+	/* we have to use AXI because PLL_CPU has no p */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+	reg |= ((p - 1) << D1_PLL_CPUX_AXI_FACTOR_P_SHIFT);
+	SXIWRITE4(sc, D1_PLL_CPUX_AXI_CFG_REG, reg);
+
+	reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+	reg &= ~D1_PLL_CPUX_FACTOR_N_MASK;
+	reg |= ((n) << D1_PLL_CPUX_FACTOR_N_SHIFT);
+	SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+	/* enable the CPU clock */
+	reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+	reg |= D1_PLL_CPUX_OUTPUT_GATE;
+	SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+}
+#endif
+
+
+
+int
+sxiccmu_d1_set_frequency(struct sxiccmu_softc *sc, uint32_t idx, uint32_t freq)
+{
+	struct sxiccmu_clock clock;
+	uint32_t reg;
+	int n, p;
+	int error;
+
+	switch (idx) {
+	case D1_CLK_PLL_CPUX:
+		p = 1;
+		n = 42;
+
+		while (n >= 13 && (24000000 * (n / p)) > freq)
+			n--;
+
+		/* XXX magic numbers d1-h_user_manual_v1.0.pdf page 68 */
+		if (n < 13)
+			return -1;
+
+		/* lower gate */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+		reg &= ~D1_PLL_CPUX_OUTPUT_GATE;
+		SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+		/* set p to 1 */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+		reg |= ((p - 1) << D1_PLL_CPUX_AXI_FACTOR_P_SHIFT);
+		SXIWRITE4(sc, D1_PLL_CPUX_AXI_CFG_REG, reg);
+
+		reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+		reg &= ~D1_PLL_CPUX_FACTOR_N_MASK;
+		reg &= ~D1_PLL_CPUX_FACTOR_M_MASK;
+		reg |= ((n) << D1_PLL_CPUX_FACTOR_N_SHIFT);	 /* m = 0 */
+		SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+		/*  Wait for PLL to lock. */		
+		while ((SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG) &
+		    D1_PLL_CPUX_LOCK) == 0) {
+			delay(200);
+		}
+
+		/* raise gate */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_CTRL_REG);
+		reg |= D1_PLL_CPUX_OUTPUT_GATE;
+		SXIWRITE4(sc, D1_PLL_CPUX_CTRL_REG, reg);
+
+		return 0;
+
+	case D1_CLK_CPUX:
+		/* Switch to 24 MHz clock. */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+		reg &= ~D1_CPUX_CLK_SRC_SEL;
+		reg |= D1_CPUX_CLK_SRC_SEL_OSC24M;
+		SXIWRITE4(sc, D1_PLL_CPUX_AXI_CFG_REG, reg);
+
+		error = sxiccmu_d1_set_frequency(sc, D1_CLK_PLL_CPUX, freq);
+
+		/* Switch back to PLL. */
+		reg = SXIREAD4(sc, D1_PLL_CPUX_AXI_CFG_REG);
+		reg &= ~D1_CPUX_CLK_SRC_SEL;
+		reg |= D1_CPUX_CLK_SRC_SEL_PLL_CPUX;
+		SXIWRITE4(sc, D1_PLL_CPUX_AXI_CFG_REG, reg);
+		return error;
+
+	case D1_CLK_MMC0:
+	case D1_CLK_MMC1:
+	case D1_CLK_MMC2:
+		clock.sc_iot = sc->sc_iot;
+		bus_space_subregion(sc->sc_iot, sc->sc_ioh,
+		    sc->sc_gates[idx].reg, 4, &clock.sc_ioh);
+
+		if (idx == D1_CLK_MMC0)
+			return sxiccmu_d1_mmc_set_frequency(sc, D1_SMHC0_CLK_REG, freq);
+		else if (idx == D1_CLK_MMC1)
+			return sxiccmu_d1_mmc_set_frequency(sc, D1_SMHC1_CLK_REG, freq);
+		else if (idx == D1_CLK_MMC2)
+			return sxiccmu_d1_mmc_set_frequency(sc, D1_SMHC2_CLK_REG, freq);
+		break;
+	}
+
+	printf("%s: 0x%08x\n", __func__, idx);
+	return -1;
+}
+
+
+int
+sxiccmu_d1_mmc_set_frequency(struct sxiccmu_softc *sc, bus_size_t offset,
+    uint32_t freq)
+{
+	uint32_t parent_freq;
+	uint32_t reg, m, n;
+	uint32_t clk_src;
+
+	switch (freq) {
+	case 400000:
+		n = 2, m = 4;
+		clk_src = D1_SMHC_CLK_SRC_SEL_HOSC;
+		break;
+	case 20000000:
+	case 25000000:
+	case 26000000:
+	case 50000000:
+	case 52000000:
+		n = 1, m = 0;
+		clk_src = D1_SMHC_CLK_SRC_SEL_PLL_PERI_2X;
+		parent_freq =
+		    sxiccmu_d1_get_frequency(sc, D1_CLK_PLL_PERIPH0_2X);
+		while ((parent_freq / (n) / 1) > freq)
+			n++;
+		while ((parent_freq / (n) / (m + 1)) > freq)
+			m++;
+		break;
+	default:
+		return -1;
+	}
+
+	reg = SXIREAD4(sc, offset);
+        reg &= ~D1_SMHC_CLK_SRC_SEL;
+        reg |= clk_src;
+        reg &= ~D1_SMHC_FACTOR_N_MASK;
+        reg |= n << D1_SMHC_FACTOR_N_SHIFT;
+	reg &= ~D1_SMHC_FACTOR_M_MASK;
+	reg |= n << D1_SMHC_FACTOR_M_SHIFT;
+	SXIWRITE4(sc, offset, reg);
+		
+	return 0;
 }
 
 int

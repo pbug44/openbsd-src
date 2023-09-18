@@ -107,6 +107,14 @@
 #define USTATUS_UIE		(1 << 0)
 #define USTATUS_UPIE		(1 << 4)
 
+#ifdef MANGOPI
+
+#define SXSTATUS_PMDU		(1 << 10)	/* u performance monitor bit */
+#define SXSTATUS_PMDS		(1 << 11)	/* s performance monitor bit */ 
+#define SXSTATUS_MM		(1 << 15)	/* misaligned access bit */
+
+#endif
+
 #define MSTATUS_PRV_U		0	/* user */
 #define MSTATUS_PRV_S		1	/* supervisor */
 #define MSTATUS_PRV_H		2	/* hypervisor */

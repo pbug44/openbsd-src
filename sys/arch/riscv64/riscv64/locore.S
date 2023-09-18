@@ -92,6 +92,7 @@ _start_kern_bootstrap:
 
 	/* Level 2 superpages (512 x 2MiB) */
 	lla	s1, pagetable_l2
+	srli	s2, s9, PAGE_SHIFT	/* s9 was physical mem not pages */
 	srli	t4, s9, L2_SHIFT	/* Div physmem base by 2 MiB */
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2

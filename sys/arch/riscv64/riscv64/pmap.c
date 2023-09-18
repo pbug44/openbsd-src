@@ -255,19 +255,19 @@ pmap_unlock(struct pmap *pmap)
 static inline int
 VP_IDX1(vaddr_t va)
 {
-	return (va >> VP_IDX1_POS) & VP_IDX1_MASK;
+	return ((va >> VP_IDX1_POS) & VP_IDX1_MASK);
 }
 
 static inline int
 VP_IDX2(vaddr_t va)
 {
-	return (va >> VP_IDX2_POS) & VP_IDX2_MASK;
+	return ((va >> VP_IDX2_POS) & VP_IDX2_MASK);
 }
 
 static inline int
 VP_IDX3(vaddr_t va)
 {
-	return (va >> VP_IDX3_POS) & VP_IDX3_MASK;
+	return ((va >> VP_IDX3_POS) & VP_IDX3_MASK);
 }
 
 /*
@@ -310,8 +310,8 @@ struct pte_desc *
 pmap_vp_lookup(pmap_t pm, vaddr_t va, pt_entry_t **pl3entry)
 {
 	struct pmapvp1 *vp1;
-	struct pmapvp2 *vp2;
-	struct pmapvp3 *vp3;
+	struct pmapvp2 *vp2; 
+	struct pmapvp3 *vp3; 
 	struct pte_desc *pted;
 
 	vp1 = pm->pm_vp.l1;
@@ -802,7 +802,8 @@ pmap_zero_page(struct vm_page *pg)
 	paddr_t pa = VM_PAGE_TO_PHYS(pg);
 	vaddr_t va = zero_page + cpu_number() * PAGE_SIZE;
 
-	pmap_kenter_pa(va, pa, PROT_READ|PROT_WRITE);
+	pmap_kenter_pa(va, pa, PROT_READ|PROT_WRITE|PROT_EXEC);
+
 	pagezero(va);
 	pmap_kremove_pg(va);
 }
@@ -1006,6 +1007,7 @@ pmap_kvp_alloc(void)
 {
 	void *kvp;
 
+	printf("in pmap_kvp_alloc()\n");
 	if (!uvm.page_init_done && !pmap_virtual_space_called) {
 		paddr_t pa[2];
 		vaddr_t va;
@@ -1016,13 +1018,24 @@ pmap_kvp_alloc(void)
 		va = virtual_avail;
 		virtual_avail += 2 * PAGE_SIZE;
 		KASSERT(virtual_avail <= pmap_maxkvaddr);
+
 		kvp = (void *)va;
 
 		pmap_kenter_pa(va, pa[0], PROT_READ|PROT_WRITE);
 		pmap_kenter_pa(va + PAGE_SIZE, pa[1], PROT_READ|PROT_WRITE);
+
+#ifndef MANGOPI
 		pagezero(va);
 		pagezero(va + PAGE_SIZE);
+#else
+		/* 1 pjp */
+		//pagezero(va);
+		//pagezero(va + PAGE_SIZE);
+		printf("skipping pagezero for address %lx, slot %d\n", va,
+			VP_IDX1(va));
+#endif
 	} else {
+		printf("using km_alloc()\n");
 		kvp = km_alloc(sizeof(struct pmapvp1), &kv_kvp, &kp_zero,
 		    &kd_nowait);
 	}
@@ -1080,6 +1093,9 @@ pmap_growkernel(vaddr_t maxkvaddr)
 	if (maxkvaddr <= pmap_maxkvaddr)
 		return pmap_maxkvaddr;
 
+	printf("in pmap_growkernel with maxkvaddr=%lx slot=%d,"
+		" pmap_maxkvaddr=%lx slot=%d\n", maxkvaddr,
+		VP_IDX1(maxkvaddr), pmap_maxkvaddr, VP_IDX1(pmap_maxkvaddr));
 	/*
 	 * Not strictly necessary, but we use an interrupt-safe map
 	 * and uvm asserts that we're at IPL_VM.
@@ -1087,6 +1103,7 @@ pmap_growkernel(vaddr_t maxkvaddr)
 	s = splvm();
 
 	for (i = VP_IDX1(pmap_maxkvaddr); i <= VP_IDX1(maxkvaddr - 1); i++) {
+		printf("past splvm on slot %d\n", i);
 		vp2 = vp1->vp[i];
 		if (vp2 == NULL) {
 			vp2 = pmap_kvp_alloc();
@@ -1096,6 +1113,8 @@ pmap_growkernel(vaddr_t maxkvaddr)
 			vp1->vp[i] = vp2;
 			vp1->l1[i] = VP_Lx(pa);
 		}
+
+		printf("past pmap_extract() on slot %d\n", i);
 
 		if (i == VP_IDX1(pmap_maxkvaddr)) {
 			lb_idx2 = VP_IDX2(pmap_maxkvaddr);
@@ -1109,19 +1128,30 @@ pmap_growkernel(vaddr_t maxkvaddr)
 			ub_idx2 = VP_IDX2_CNT - 1;
 		}
 
+		printf("before vp3 on slot %d, lb_idx2=%u, ub_idx2=%u VP_IDX3_CNT=%u\n", i,
+			lb_idx2, ub_idx2, VP_IDX3_CNT);
+
+		KASSERT(lb_idx2 <= ub_idx2);
+
 		for (j = lb_idx2; j <= ub_idx2; j++) {
+			printf("on iteration %u\n", j);
 			vp3 = vp2->vp[j];
+			printf("vp3 = vp2->vp[j] gotcha\n");
 			if (vp3 == NULL) {
+				printf("before pmap_kvp_allcc\n");
 				vp3 = pmap_kvp_alloc();
 				if (vp3 == NULL)
 					goto fail;
+				printf("before pmap_extract\n");
 				pmap_extract(pmap_kernel(), (vaddr_t)vp3, &pa);
 				vp2->vp[j] = vp3;
 				vp2->l2[j] = VP_Lx(pa);
 			}
 
 			for (k = 0; k <= VP_IDX3_CNT - 1; k++) {
+				printf("k");
 				if (vp3->vp[k] == NULL) {
+					printf("before pmap_kpted_alloc\n");
 					pted = pmap_kpted_alloc();
 					if (pted == NULL)
 						goto fail;
@@ -1129,9 +1159,12 @@ pmap_growkernel(vaddr_t maxkvaddr)
 					pmap_maxkvaddr += PAGE_SIZE;
 				}
 			}
+			printf("\n");
 		}
 	}
 	KASSERT(pmap_maxkvaddr >= maxkvaddr);
+
+	printf("before splx\n");
 
 fail:
 	splx(s);
@@ -1163,15 +1196,17 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 {
 	vaddr_t va;
 	paddr_t pa;
+	uint l1_slot;
 	pt_entry_t *l1;
-	u_int l1_slot;
 	pt_entry_t entry;
 	pn_t pn;
 
-	pa = dmap_phys_base = min_pa & ~L1_OFFSET;  // 1 GiB Align
+	/* 1 GiB Align */
+	pa = dmap_phys_base = min_pa & ~L1_OFFSET;	// 1 GiB Align
+
 	va = DMAP_MIN_ADDRESS;
 	l1 = (pt_entry_t *)kern_l1;
-	l1_slot = VP_IDX1(DMAP_MIN_ADDRESS);
+	l1_slot = VP_IDX1(va);
 
 	for (; va < DMAP_MAX_ADDRESS && pa < max_pa;
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
@@ -1181,9 +1216,22 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 		pn = (pa / PAGE_SIZE);
 		entry = PTE_KERN;
 		entry |= (pn << PTE_PPN0_S);
-		atomic_store_64(&l1[l1_slot], entry);
-	}
 
+#if MANGOPI
+		/*
+		 * The C906 hangs on the amo operation on virtual memory
+		 * pagetable, since we're early in the boot and most likely
+		 * on one CPU there is no locking required really.  Not that
+		 * the C906 has many more cores anyhow.
+		 */
+
+		// 2 pjp 
+		//atomic_store_64(&l1[l1_slot], entry);
+		l1[l1_slot] = entry;
+#else
+		atomic_store_64(&l1[l1_slot], entry);
+#endif
+	}
 	/* set the upper limit of the dmap region */
 	dmap_phys_max = pa;
 	dmap_virt_max = va;
@@ -1202,16 +1250,49 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 	struct pmapvp3 *vp3;
 	struct pte_desc *pted;
 	vaddr_t vstart;
+	uint64_t satp;
 	int i, j, k;
 	int lb_idx2, ub_idx2;
 	void *node;
 
 	node = fdt_find_node("/");
 	if (fdt_is_compatible(node, "starfive,jh7100")) {
-		pmap_cached_start = 0x0080000000ULL;
-		pmap_cached_end = 0x087fffffffULL;
-		pmap_uncached_start = 0x1000000000ULL;
-		pmap_uncached_end = 0x17ffffffffULL;
+		pmap_cached_start = 	0x0080000000ULL;
+		pmap_cached_end = 	0x087fffffffULL;
+		pmap_uncached_start = 	0x1000000000ULL;
+		pmap_uncached_end = 	0x17ffffffffULL;
+	} else if (fdt_is_compatible(node, "allwinner,d1-nezha")) {
+		ulong *l1 = (ulong *)l1pt, *l2pt;		//, *l3pt;
+		uint slot;
+#if 0
+		pmap_cached_start = 	0x00c0000000ULL;
+		pmap_cached_end = 	0x00ffffffffULL;
+		pmap_uncached_start = 	0x0040000000ULL;
+		pmap_uncached_end = 	0x007fffffffULL;
+#endif
+		printf("[oh it's a Mango Pi, hold on this may take a whi. :-)]\n");
+		__asm volatile ("csrr %0, satp" : "=r" (satp));
+		printf("  satp %llx %llx\n", satp, SATP_PPN(satp) << PAGE_SHIFT);
+		slot = VP_IDX1((vaddr_t)l1pt);
+		printf("  l1 = %lX, slot=%d next=%lX off=%X\n", (vaddr_t)l1pt, slot,
+			(vaddr_t) l1[slot * 8], slot * 8);
+		l2pt = &l1[(slot * 8)];
+		slot = VP_IDX2((vaddr_t)l2pt[0]);
+		printf("  l2 = %lX, slot=%d, next=%lX off=%X\n", (vaddr_t)l2pt, slot,
+			l2pt[slot * 8], slot * 8);
+		for (int x=slot; x < slot + 512; x++) {
+			printf("  l2 = %lX, slot=%d, next=%lX off=%X\n", l2pt[slot], 
+				x, l2pt[x * 8], x * 8);
+		}
+#if 0
+		l3pt = &l2pt[(slot * 8)];
+		slot = VP_IDX3((vaddr_t)l3pt[0]);
+		for (int x=slot; x < slot + 8; x++) {
+			printf("  l3 = %lX, slot=%d, next=%lX off=%X\n", l3pt[slot], 
+				x, l3pt[x * 8], x * 8);
+		}
+#endif
+
 	}
 
 	pmap_setup_avail(memstart, memend, kvo);
@@ -1336,6 +1417,7 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 
 	pmap_avail_fixup();
 
+
 	/*
 	 * At this point we are still running on the bootstrap page
 	 * tables however all memory for the final page tables is
@@ -1348,11 +1430,12 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 	// Include the Direct Map in Kernel PMAP
 	// as gigapages, only populated the pmapvp1->l1 field,
 	// pmap->va field is not used
-	pmap_bootstrap_dmap((vaddr_t) pmap_kernel()->pm_vp.l1, ramstart, ramend);
+	satp = pmap_kernel()->pm_satp;
 
+	pmap_bootstrap_dmap((vaddr_t) pmap_kernel()->pm_vp.l1, ramstart, ramend);
 	//switching to new page table
-	uint64_t satp = pmap_kernel()->pm_satp;
 	__asm volatile("csrw satp, %0" :: "r" (satp) : "memory");
+
 
 	printf("all mapped\n");
 
@@ -1451,9 +1534,11 @@ pmap_extract(pmap_t pm, vaddr_t va, paddr_t *pap)
 	struct pte_desc *pted;
 	paddr_t pa;
 
+	printf("in pmap_extract\n");
 	pmap_lock(pm);
 	pted = pmap_vp_lookup(pm, va, NULL);
 	if (!pted || !PTED_VALID(pted)) {
+		printf("pmap_extract: pted=%p is %s\n", pted, (pted == NULL) ? "NULL" : "not valid");
 		pmap_unlock(pm);
 		return 0;
 	}

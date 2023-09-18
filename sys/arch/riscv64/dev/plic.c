@@ -153,7 +153,8 @@ plic_match(struct device *parent, void *cfdata, void *aux)
 		return 0; // Only expect one instance of PLIC
 
 	return (OF_is_compatible(faa->fa_node, "riscv,plic0") ||
-		OF_is_compatible(faa->fa_node, "sifive,plic-1.0.0"));
+		OF_is_compatible(faa->fa_node, "sifive,plic-1.0.0") ||
+		OF_is_compatible(faa->fa_node, "thead,c900-plic"));
 }
 
 void

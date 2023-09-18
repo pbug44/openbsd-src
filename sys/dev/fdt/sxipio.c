@@ -202,6 +202,10 @@ const struct sxipio_pins sxipio_pins[] = {
 		"allwinner,sun50i-h6-r-pinctrl",
 		sun50i_h6_r_pins, nitems(sun50i_h6_r_pins)
 	},
+	{
+		"allwinner,sun20i-d1-pinctrl",
+		sun20i_d1_pins, nitems(sun20i_d1_pins)
+	},
 };
 
 int

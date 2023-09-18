@@ -126,4 +126,13 @@
 	li	tmp, SSTATUS_SUM;					\
 	csrc	sstatus, tmp
 
+#ifdef MANGOPI
+
+/* turn on the memory misaligned bit */
+#define SET_MM_BIT(tmp)							\
+	li	tmp, SSTATUS_MM						\
+	csrs	sstatus, tmp, SSTATUS_MM
+
+#endif
+
 #endif /* _MACHINE_ASM_H_ */

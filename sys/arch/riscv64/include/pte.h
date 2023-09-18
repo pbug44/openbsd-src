@@ -40,7 +40,26 @@
 #define	PTE_RX		(PTE_R | PTE_X)
 #define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
 #define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_A | PTE_G | PTE_U | \
-			 PTE_SW_MANAGED | PTE_SW_WIRED
+			 PTE_SW_MANAGED | PTE_SW_WIRED )
+
+
+#if MANGOPI
+/* 
+ * C906 Allwinner D1 extended page attributes
+ *
+ * from https://occ-intl-prod.oss-ap-southeast-1.aliyuncs.com\
+ *	/resource/XuanTie-OpenC906-UserManual.pdf
+ * 
+ */
+
+#define PTE_SO		(1ULL << 63)	/* strong order if set */
+#define PTE_C		(1ULL << 62)	/* cacheable if set */
+#define PTE_B		(1ULL << 61)	/* bufferable if set */
+#define PTE_T		(1ULL << 60)	/* trust not used in the C906 */
+
+#define PTE_THEAD	(PTE_SO | PTE_C | PTE_B)
+
+#endif /* MANGOPI */
 
 /* Level 0 table, 512GiB per entry */
 #define	 L0_SHIFT	39
@@ -73,7 +92,9 @@
 #define	PTE_PPN1_S	19
 #define	PTE_PPN2_S	28
 #define	PTE_PPN3_S	37
+
 #define	PTE_SIZE	8
+#define PTE_SHIFT	3
 
 #ifndef _LOCORE
 typedef	uint64_t	pt_entry_t;		/* page table entry */
