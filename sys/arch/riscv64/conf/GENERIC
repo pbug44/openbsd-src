@@ -13,6 +13,7 @@ machine		riscv64
 include		"../../../conf/GENERIC"
 maxusers	80
 
+option		MANGOPI
 option		PCIVERBOSE
 option		USER_PCICONF
 
