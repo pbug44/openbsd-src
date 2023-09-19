@@ -150,7 +150,6 @@ const struct sxipio_pins sxipio_pins[] = {
 		"allwinner,sun7i-a20-pinctrl",
 		sun7i_a20_pins, nitems(sun7i_a20_pins)
 	},
-#ifndef MANGOPI
 	{
 		"allwinner,sun8i-r40-pinctrl",
 		sun8i_r40_pins, nitems(sun8i_r40_pins)
@@ -175,7 +174,6 @@ const struct sxipio_pins sxipio_pins[] = {
 		"allwinner,sun8i-v3s-pinctrl",
 		sun8i_v3s_pins, nitems(sun8i_v3s_pins)
 	},
-#endif
 	{
 		"allwinner,sun9i-a80-pinctrl",
 		sun9i_a80_pins, nitems(sun9i_a80_pins)
