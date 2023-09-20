@@ -35,7 +35,6 @@ atomic_setbits_int(volatile unsigned int *p, unsigned int v)
 			: "memory");
 }
 
-#ifndef MANGOPI
 static inline void
 atomic_store_64(volatile uint64_t *p, uint64_t v)
 {
@@ -44,24 +43,6 @@ atomic_store_64(volatile uint64_t *p, uint64_t v)
 			: "r" (v)
 			: "memory");
 }
-#else
-static inline void
-atomic_store_64(volatile uint64_t *p, uint64_t v)
-{
-	static uint32_t lock = 0;
-
-	__asm volatile("li 	t0, 1\n"
-			"1: lw	t1, (%0)\n"
-			"bnez	t1, 1b\n"
-			"amoswap.w.aq t1, t0, (%0)\n"
-			"bnez	t1, 1b\n"
-			"sd	%2, %1\n"
-			"amoswap.w.rl	zero, zero, (%0)\n"
-			"nop\n"
-			: "=&r" (lock), "+A" (*p), "=&r" (v));
-}
-#endif
-
 
 /*
  * Clear bits

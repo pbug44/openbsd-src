@@ -1225,9 +1225,10 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 		 * the C906 has many more cores anyhow.
 		 */
 
-		// 2 pjp 
+		printf("before the dreaded atomic_store_64\n");
 		//atomic_store_64(&l1[l1_slot], entry);
 		l1[l1_slot] = entry;
+		printf("after the dreaded atomic_store_64\n");
 #else
 		atomic_store_64(&l1[l1_slot], entry);
 #endif
@@ -1262,36 +1263,15 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 		pmap_uncached_start = 	0x1000000000ULL;
 		pmap_uncached_end = 	0x17ffffffffULL;
 	} else if (fdt_is_compatible(node, "allwinner,d1-nezha")) {
-		ulong *l1 = (ulong *)l1pt, *l2pt;		//, *l3pt;
-		uint slot;
 #if 0
 		pmap_cached_start = 	0x00c0000000ULL;
 		pmap_cached_end = 	0x00ffffffffULL;
 		pmap_uncached_start = 	0x0040000000ULL;
 		pmap_uncached_end = 	0x007fffffffULL;
 #endif
+
 		printf("[oh it's a Mango Pi, hold on this may take a whi. :-)]\n");
-		__asm volatile ("csrr %0, satp" : "=r" (satp));
-		printf("  satp %llx %llx\n", satp, SATP_PPN(satp) << PAGE_SHIFT);
-		slot = VP_IDX1((vaddr_t)l1pt);
-		printf("  l1 = %lX, slot=%d next=%lX off=%X\n", (vaddr_t)l1pt, slot,
-			(vaddr_t) l1[slot * 8], slot * 8);
-		l2pt = &l1[(slot * 8)];
-		slot = VP_IDX2((vaddr_t)l2pt[0]);
-		printf("  l2 = %lX, slot=%d, next=%lX off=%X\n", (vaddr_t)l2pt, slot,
-			l2pt[slot * 8], slot * 8);
-		for (int x=slot; x < slot + 512; x++) {
-			printf("  l2 = %lX, slot=%d, next=%lX off=%X\n", l2pt[slot], 
-				x, l2pt[x * 8], x * 8);
-		}
-#if 0
-		l3pt = &l2pt[(slot * 8)];
-		slot = VP_IDX3((vaddr_t)l3pt[0]);
-		for (int x=slot; x < slot + 8; x++) {
-			printf("  l3 = %lX, slot=%d, next=%lX off=%X\n", l3pt[slot], 
-				x, l3pt[x * 8], x * 8);
-		}
-#endif
+
 
 	}
 
@@ -1375,6 +1355,7 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 		}
 	}
 
+	printf("enough mem stolen.. such thiefery\n");
 	/* now that we have mapping-space for everything, lets map it */
 	/* all of these mappings are ram -> kernel va */
 

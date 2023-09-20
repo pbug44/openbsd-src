@@ -75,7 +75,7 @@ int cold = 1;
 struct vm_map *exec_map = NULL;
 struct vm_map *phys_map = NULL;
 
-int physmem;
+int physmem = 0;
 
 caddr_t msgbufaddr;
 paddr_t msgbufphys;
@@ -567,7 +567,6 @@ initriscv(struct riscv_bootparams *rbp)
 		rbp->dtbp_virt, rbp->dtbp_phys);	
 #endif
 
-
 	if (!fdt_init(config) || fdt_get_size(config) == 0)
 		panic("initriscv: no FDT");
 	fdt_size = fdt_get_size(config);
@@ -828,8 +827,13 @@ initriscv(struct riscv_bootparams *rbp)
 	 * particular, we need enough KVA to be able to allocate the
 	 * vm_page structures.
 	 */
+#if MANGOPI
+	pmap_growkernel((VM_MIN_KERNEL_ADDRESS + 1024 * 1024 * 1024 +
+	    physmem * sizeof(struct vm_page)) & ~L1_OFFSET);
+#else
 	pmap_growkernel(VM_MIN_KERNEL_ADDRESS + 1024 * 1024 * 1024 +
 	    physmem * sizeof(struct vm_page));
+#endif
 
 #ifdef DDB
 	db_machine_init();
