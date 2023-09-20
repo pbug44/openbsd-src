@@ -72,75 +72,85 @@ _start_kern_bootstrap:
 	/* Get the kernel's load address */
 	jal	get_physmem
 
+
+	mv	s5, a0			/* save a0 */
+	mv	s6, a1		 	/* save a1 */
+
 	/* Add L1 entry for kernel */
-	lla	s1, pagetable_l1
-	lla	s2, pagetable_l2	/* Link to next level PN */
-	srli	s2, s2, PAGE_SHIFT
+	lla	s1, pagetable_l1	/* address of L1 pagetable l1 */
+	lla	s3, pagetable_l2	/* Link to next level PN (l2) */
 
-	li	a5, KERNBASE
-	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
-	andi	a5, a5, 0x1ff		/* & 0x1ff */
-	li	t4, PTE_V
-	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
-	or	t6, t4, t5
+	li	a3, KERNBASE
+	li	a4, 1			/* 1 iteration */
+	li	a5, L1_SHIFT		/* L1 operation SHIFT */
+	li	a6, PTE_V
+	li	a7, PTE_PPN0_S		/* s3 is shifted by PTE_PPN0_S */
 
-	/* Store L1 PTE entry to position */
-	li	a6, PTE_SIZE
-	mulw	a5, a5, a6
-	add	t0, s1, a5
-	sd	t6, (t0)
+	jal	rv64_generic_pte
+
+	mv	a0, s5			/* restore a0 */
+	mv	a1, s6			/* restore a1 */
+
+	mv	s5, a0			/* save a0 */
+	mv	s6, a1		 	/* save a1 */
 
 	/* Level 2 superpages (512 x 2MiB) */
-	lla	s1, pagetable_l2
-	srli	s2, s9, PAGE_SHIFT	/* s9 was physical mem not pages */
-	srli	t4, s9, L2_SHIFT	/* Div physmem base by 2 MiB */
-	li	t2, 512			/* Build 512 entries */
-	add	t3, t4, t2
-	li	t0, (PTE_KERN | PTE_X)
-1:
-	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
-	or	t5, t0, t2
-	sd	t5, (s1)		/* Store PTE entry to position */
-	addi	s1, s1, PTE_SIZE
+	lla	s1, pagetable_l2	/* init s1 to pagetable l2 */
+	mv	s3, s9			/* a PA address */
 
-	addi	t4, t4, 1
-	bltu	t4, t3, 1b
+	li	a3, KERNBASE
+
+	li	a4, 512			/* 512 iterations */
+	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
+	li	a6, (PTE_KERN | PTE_X)
+	li	a7, PTE_PPN1_S
+
+	jal	rv64_generic_pte
+
+	mv	a0, s5			/* restore a0 */
+	mv	a1, s6			/* restore a1 */
 
 	/* Create an L1 page for early devmap */
-	lla	s1, pagetable_l1
-	lla	s2, pagetable_l2_devmap	/* Link to next level PN */
-	srli	s2, s2, PAGE_SHIFT
+	mv	s5, a0			/* save a0 */
+	mv	s6, a1		 	/* save a1 */
 
-	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
-	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
-	andi	a5, a5, 0x1ff		/* & 0x1ff */
-	li	t4, PTE_V
-	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
-	or	t6, t4, t5
+	lla	s1, pagetable_l1	/* address of L1 pagetable l1 */
+	lla	s3, pagetable_l2_devmap
 
-	/* Store single level1 PTE entry to position */
-	li	a6, PTE_SIZE
-	mulw	a5, a5, a6
-	add	t0, s1, a5
-	sd	t6, (t0)
+	li	a3, (VM_MAX_KERNEL_ADDRESS - L1_SIZE)
+	li	a4, 1			/* 1 iteration */
+	li	a5, L1_SHIFT		/* L1 operation SHIFT */
+	li	a6, PTE_V
+	li	a7, PTE_PPN0_S		/* s3 is shifted by PTE_PPN0_S */
 
-	/* Create an L2 page superpage for DTB */
-	lla	s1, pagetable_l2_devmap
-	mv	s2, a1
-	srli	s2, s2, PAGE_SHIFT
+	jal	rv64_generic_pte
+
+	mv	a0, s5			/* restore a0 */
+	mv	a1, s6			/* restore a1 */
+
+	/* Create an L1 page superpage for DTB */
+	mv	s5, a0			/* save a0 */
+	mv	s6, a1		 	/* save a1 */
+
+	lla	s1, pagetable_l2_devmap	/* Link to next level PN */
+	mv	s3, a1
+
+	srli	s3, s3, PAGE_SHIFT
 	/* Mask off any bits that aren't aligned */
-	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
+	li	t0, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
+	and	s3, s3, t0
+	slli	s3, s3, PAGE_SHIFT		/* restore to address */
 
-	li	t0, (PTE_KERN)
-	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
-	or	t0, t0, t2
+	li	a3, (VM_MAX_KERNEL_ADDRESS - L1_SIZE)
+	li	a4, 512
+	li	a5, L2_SHIFT
+	li	a6, (PTE_KERN)
+	li	a7, PTE_PPN1_S		/* PPN1 shift */
 
-	/* Store PTE entry to position */
-	li	a6, PTE_SIZE
-	li	a5, 510
-	mulw	a5, a5, a6
-	add	t1, s1, a5
-	sd	t0, (t1)
+	jal	rv64_generic_pte
+
+	mv	a0, s5			/* restore a0 */
+	mv	a1, s6			/* restore a1 */
 
 	/* Page tables END */
 
@@ -201,11 +211,10 @@ va:
 	la	t0, initstack
 	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
 
-	li	t0, (VM_EARLY_DTB_ADDRESS)
-	/* Add offset of DTB within superpage */
-	li	t1, (L2_OFFSET)
-	and	t1, a1, t1
-	add	t0, t0, t1
+	li	t1, (VM_MAX_KERNEL_ADDRESS - L1_SIZE)
+	li	t2, (L2_OFFSET)
+	and	t2, a1, t2
+	add	t0, t1, t2
 	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
 	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
 
@@ -230,6 +239,139 @@ get_physmem:
 	li	t2, KERNBASE
 	sub	s9, t2, t1	/* s9 = physmem base */
 	ret
+
+
+/*
+ * rv64_generic_pte, takes 5 arguments and accesses 2 saved registers
+ * must save before and restore after a0 and a1
+ *
+ * a3 - VA	(an address, usually KERNBASE aligned )
+ * a4 - iteration slots (between 1...512, truncates to 512 if higher
+ * a5 - Lx shift        (L1_SHIFT for L1)
+ * a6 - perms           (PTE_R|PTE_W|PTE_X is LEAF, otherwise BRANCH PTE)
+ * a7 - pagenumber shift (PTE_PPN0_S for L1)
+ *
+ * s1 - the respective pagetable address
+ * s3 - if we're branch entry (determined by perms) use this s3 otherwise a3
+ *
+ */
+
+rv64_generic_pte:
+
+	li	t0, 512
+	bleu	a4, t0, 5f
+
+	mv	a4, t0			/* programmer mistake? set to 512 */
+5:
+
+	li	t0, PAGE_SHIFT
+	srl	t1, a3, t0 		/* t1 is a pagenumber of VA a3 */
+	sub	t2, a5, t0		/* Lx_SHIFT - PAGE_SHIFT=(30,21,12) */
+	srl	t2, t1, t2		/* t2 is a PPN */
+
+	srl	t4, s3, t0 		/* t4 is a pagenumber of PA s3 */
+	sub	t5, a5, t0		/* L_SHIFT - PAGE_SHIFT= (30, 21, 12) */
+	srl	t5, t4, t5		/* t5 is a PPN */
+
+	andi	t6, t2, 0x1ff		/* t6 is our slot */
+
+	slli	t0, t6, PTE_SHIFT	/* t0 = PTE_SIZE * slot# reduced */
+	mv	s2, s1			/* save s1 in s2 */
+	add	s1, s1, t0		/* s1 = initial offset in pagetable */
+
+
+	add	a4, a4, t6		/* limit by adding a4 with slots */
+	slli	a4, a4, PTE_SHIFT	/* limit is now an offset in s1 */
+
+	li	t0, 4096
+
+	bleu	a4, t0, 0f		/* if limit <= 4096, branch to 0f */
+	mv	a4, t0			/* if limit > 4096 set it to 4096 */
+0:
+	add	a4, a4, s2		/* initial s1 + offset(a4) is limit */
+1:
+	andi 	t0, a6, (PTE_X|PTE_W|PTE_R)	/* determine branch/leaf */
+	beqz	t0, 2f				/* if X|R|W unset, goto 2f */
+
+	/*
+	 *  we are a LEAF (any level cache can be a LEAF according to docs)
+	 *
+	 */
+
+	li	t0, PTE_PPN0_S
+	beq	t0, a7, 10f
+
+	li	t0, PTE_PPN1_S
+	beq	t0, a7, 11f
+
+	/* FALLTHROUGH */
+
+	/* %%%%%%%%%%%%%%%%%%%% L3 PA -> PTE LEAF %%%%%%%%%%%%%%%%%%%%%% */
+
+	add	t0, t6, t5
+	sll	t3, t0, a7		/* PTE_PPN0_S */
+	or	t3, t3, a6		/* OR permissions */
+
+	j	3f		/* jump over some leafs and BRANCHes */
+
+10:
+	/* %%%%%%%%%%%%%%%%%%%% L1 PA -> PTE LEAF %%%%%%%%%%%%%%%%%%%%%% */
+
+	add	t0, t6, t5
+	sll	t3, t0, a7		/* PTE_PPN0_S */
+	or	t3, t3, a6		/* OR permissions */
+
+	j	3f
+11:
+	/* %%%%%%%%%%%%%%%%%%%% L2 PA -> PTE LEAF %%%%%%%%%%%%%%%%%%%%%% */
+
+	add	t0, t6, t5
+	sll	t3, t0, a7		/* PTE_PPN1_S */
+	or	t3, t3, a6		/* OR permissions */
+
+	j	3f			/* jump over the BRANCH */
+2:
+	/*
+	 *
+	 * We are a BRANCH (there can be only two in Sv39)
+	 *
+	 */
+
+	li	t0, PTE_PPN0_S
+	beq	t0, a7, 20f
+
+	/* %%%%%%%%%%%%%%%%%%%% L2 PA -> PTE BRANCH %%%%%%%%%%%%%%%%%%%%%% */
+
+	srli	t3, s3, PAGE_SHIFT	/* t3 is in pages */
+	sll	t3, t3, a7		/* PTE_PPN1_S */
+	or	t3, t3, a6		/* OR permissions */
+
+	/* this comprises the low section of the ''PTE'' */
+
+	j	3f
+20:
+
+	/* %%%%%%%%%%%%%%%%%%%% L1 PA -> PTE BRANCH %%%%%%%%%%%%%%%%%%%%%% */
+
+	srli	t3, s3, PAGE_SHIFT	/* t3 is in pages */
+	sll	t3, t3, a7		/* PTE_PPN0_S */
+	or	t3, t3, a6		/* OR permissions */
+
+	/* this comprises the low section of the ''PTE'' */
+
+	/* FALLTHROUGH */
+
+3:
+
+	/* s1 actually isn't derived from t0 */
+
+	sd	t3, (s1)		/* store Lx PTE to position  */
+	addi	s1, s1, PTE_SIZE	/* add slot (PTE_SIZE) to s1 */
+	addi	t6, t6, 1		/* inc slot on t6 */
+	bltu	s1, a4, 1b		/* loop to 1b if we are not at limit */
+4:
+	ret
+
 
 	.data
 	.align	4
@@ -267,11 +409,13 @@ esigcode:
 esym:
 	.quad	end
 
-	.align	12
+	.align	14
 pagetable_l1:
 	.space	PAGE_SIZE
+	.align	14
 pagetable_l2:
 	.space	PAGE_SIZE
+	.align	14
 pagetable_l2_devmap:
 	.space	PAGE_SIZE
 
