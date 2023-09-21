@@ -1483,12 +1483,18 @@ com_attach_subr(struct com_softc *sc)
 		sc->sc_fifolen = 256;
 		break;
 	case COM_UART_DW_APB:
+		/* FALLTHROUGH */
+	case COM_UART_DW_APB_D1:
+
 		printf(": dw16550");
 		SET(sc->sc_hwflags, COM_HW_FIFO);
 		cpr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, com_cpr << 2);
 		sc->sc_fifolen = CPR_FIFO_MODE(cpr) * 16;
 		if (sc->sc_fifolen) {
 			printf(", %d byte fifo\n", sc->sc_fifolen);
+		} else if (sc->sc_uarttype == COM_UART_DW_APB_D1) {
+			printf("\n");
+			sc->sc_fifolen = 64;
 		} else {
 			printf("\n");
 			/*

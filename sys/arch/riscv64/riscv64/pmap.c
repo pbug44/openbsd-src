@@ -288,6 +288,7 @@ const pt_entry_t ap_bits_user[8] = {
 	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_U|PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
 };
 
+#if MANGOPI
 const pt_entry_t ap_bits_kern[8] = {
 	[PROT_NONE]				= 0,
 	[PROT_READ]				= PTE_A|PTE_R,
@@ -298,6 +299,19 @@ const pt_entry_t ap_bits_kern[8] = {
 	[PROT_EXEC|PROT_WRITE]			= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
 	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
 };
+#else
+const pt_entry_t ap_bits_kern[8] = {
+	[PROT_NONE]				= 0,
+	[PROT_READ]				= PTE_A|PTE_R,
+	[PROT_WRITE]				= PTE_A|PTE_R|PTE_D|PTE_W,
+	[PROT_WRITE|PROT_READ]			= PTE_A|PTE_R|PTE_D|PTE_W,
+	[PROT_EXEC]				= PTE_A|PTE_X,
+	[PROT_EXEC|PROT_READ]			= PTE_A|PTE_X|PTE_R,
+	[PROT_EXEC|PROT_WRITE]			= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
+	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
+};
+#endif
+
 
 /*
  * This is used for pmap_kernel() mappings, they are not to be removed
@@ -980,7 +994,11 @@ VP_Lx(paddr_t pa)
 	// In riscv64 Sv39 address translation mode PTD / PTE distinguished
 	// by the lack of PTE_R / PTE_X on an entry with PTE_V set. For both
 	// a PTD and PTE, the PTE_V bit is set.
+#if MANGOPI
 	return (((pa & PTE_RPGN) >> PAGE_SHIFT) << PTE_PPN0_S) | PTE_V;
+#else
+	return (((pa & PTE_RPGN) >> PAGE_SHIFT) << PTE_PPN0_S) | PTE_V;
+#endif
 }
 
 /*
@@ -1007,7 +1025,6 @@ pmap_kvp_alloc(void)
 {
 	void *kvp;
 
-	printf("in pmap_kvp_alloc()\n");
 	if (!uvm.page_init_done && !pmap_virtual_space_called) {
 		paddr_t pa[2];
 		vaddr_t va;
@@ -1024,18 +1041,9 @@ pmap_kvp_alloc(void)
 		pmap_kenter_pa(va, pa[0], PROT_READ|PROT_WRITE);
 		pmap_kenter_pa(va + PAGE_SIZE, pa[1], PROT_READ|PROT_WRITE);
 
-#ifndef MANGOPI
 		pagezero(va);
 		pagezero(va + PAGE_SIZE);
-#else
-		/* 1 pjp */
-		//pagezero(va);
-		//pagezero(va + PAGE_SIZE);
-		printf("skipping pagezero for address %lx, slot %d\n", va,
-			VP_IDX1(va));
-#endif
 	} else {
-		printf("using km_alloc()\n");
 		kvp = km_alloc(sizeof(struct pmapvp1), &kv_kvp, &kp_zero,
 		    &kd_nowait);
 	}
@@ -1093,9 +1101,6 @@ pmap_growkernel(vaddr_t maxkvaddr)
 	if (maxkvaddr <= pmap_maxkvaddr)
 		return pmap_maxkvaddr;
 
-	printf("in pmap_growkernel with maxkvaddr=%lx slot=%d,"
-		" pmap_maxkvaddr=%lx slot=%d\n", maxkvaddr,
-		VP_IDX1(maxkvaddr), pmap_maxkvaddr, VP_IDX1(pmap_maxkvaddr));
 	/*
 	 * Not strictly necessary, but we use an interrupt-safe map
 	 * and uvm asserts that we're at IPL_VM.
@@ -1103,7 +1108,6 @@ pmap_growkernel(vaddr_t maxkvaddr)
 	s = splvm();
 
 	for (i = VP_IDX1(pmap_maxkvaddr); i <= VP_IDX1(maxkvaddr - 1); i++) {
-		printf("past splvm on slot %d\n", i);
 		vp2 = vp1->vp[i];
 		if (vp2 == NULL) {
 			vp2 = pmap_kvp_alloc();
@@ -1113,8 +1117,6 @@ pmap_growkernel(vaddr_t maxkvaddr)
 			vp1->vp[i] = vp2;
 			vp1->l1[i] = VP_Lx(pa);
 		}
-
-		printf("past pmap_extract() on slot %d\n", i);
 
 		if (i == VP_IDX1(pmap_maxkvaddr)) {
 			lb_idx2 = VP_IDX2(pmap_maxkvaddr);
@@ -1128,30 +1130,21 @@ pmap_growkernel(vaddr_t maxkvaddr)
 			ub_idx2 = VP_IDX2_CNT - 1;
 		}
 
-		printf("before vp3 on slot %d, lb_idx2=%u, ub_idx2=%u VP_IDX3_CNT=%u\n", i,
-			lb_idx2, ub_idx2, VP_IDX3_CNT);
-
 		KASSERT(lb_idx2 <= ub_idx2);
 
 		for (j = lb_idx2; j <= ub_idx2; j++) {
-			printf("on iteration %u\n", j);
 			vp3 = vp2->vp[j];
-			printf("vp3 = vp2->vp[j] gotcha\n");
 			if (vp3 == NULL) {
-				printf("before pmap_kvp_allcc\n");
 				vp3 = pmap_kvp_alloc();
 				if (vp3 == NULL)
 					goto fail;
-				printf("before pmap_extract\n");
 				pmap_extract(pmap_kernel(), (vaddr_t)vp3, &pa);
 				vp2->vp[j] = vp3;
 				vp2->l2[j] = VP_Lx(pa);
 			}
 
 			for (k = 0; k <= VP_IDX3_CNT - 1; k++) {
-				printf("k");
 				if (vp3->vp[k] == NULL) {
-					printf("before pmap_kpted_alloc\n");
 					pted = pmap_kpted_alloc();
 					if (pted == NULL)
 						goto fail;
@@ -1159,12 +1152,9 @@ pmap_growkernel(vaddr_t maxkvaddr)
 					pmap_maxkvaddr += PAGE_SIZE;
 				}
 			}
-			printf("\n");
 		}
 	}
 	KASSERT(pmap_maxkvaddr >= maxkvaddr);
-
-	printf("before splx\n");
 
 fail:
 	splx(s);
@@ -1214,24 +1204,22 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 
 		/* gigapages */
 		pn = (pa / PAGE_SIZE);
+#if MANGOPI
+		entry = (PTE_KERN);
+#else
 		entry = PTE_KERN;
+#endif
 		entry |= (pn << PTE_PPN0_S);
 
-#if MANGOPI
 		/*
 		 * The C906 hangs on the amo operation on virtual memory
 		 * pagetable, since we're early in the boot and most likely
 		 * on one CPU there is no locking required really.  Not that
-		 * the C906 has many more cores anyhow.
+		 * the C906 has many more cores anyhow.  solution:
+		 * turn on the PTE_B and PTE_B bits in locore.S
 		 */
 
-		printf("before the dreaded atomic_store_64\n");
-		//atomic_store_64(&l1[l1_slot], entry);
-		l1[l1_slot] = entry;
-		printf("after the dreaded atomic_store_64\n");
-#else
 		atomic_store_64(&l1[l1_slot], entry);
-#endif
 	}
 	/* set the upper limit of the dmap region */
 	dmap_phys_max = pa;
@@ -1270,9 +1258,22 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 		pmap_uncached_end = 	0x007fffffffULL;
 #endif
 
-		printf("[oh it's a Mango Pi, hold on this may take a whi. :-)]\n");
+		printf("[oh it's a Mango Pi, hold on this might take a whi. :-)]\n");
 
+#if 0
+		status = csr_read(sstatus);
+		printf("sstatus: %lX\n", status);
+	
+		status = SSTATUS_FS_MASK;
+		csr_clear(sstatus, status);
+		status = csr_read(sstatus);
+		printf("sstatus: %lX after clearing FP\n", status);
 
+		sxstatus = csr_read(0x5c0);
+		printf("sxstatus: %lX\n", sxstatus);
+		csr_set(0x5c0, SXSTATUS_MM);
+		printf("%lX after setting SXTATUTS_MM of sxstatus\n", sxstatus);
+#endif
 	}
 
 	pmap_setup_avail(memstart, memend, kvo);
@@ -1355,7 +1356,6 @@ pmap_bootstrap(long kvo, vaddr_t l1pt, vaddr_t kernelstart, vaddr_t kernelend,
 		}
 	}
 
-	printf("enough mem stolen.. such thiefery\n");
 	/* now that we have mapping-space for everything, lets map it */
 	/* all of these mappings are ram -> kernel va */
 
@@ -1684,7 +1684,11 @@ pmap_pte_update(struct pte_desc *pted, uint64_t *pl3)
 	else
 		access_bits = ap_bits_user[pted->pted_pte & PROT_MASK];
 
+#if MANGOPI
 	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V;
+#else
+	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V;
+#endif
 	*pl3 = access_bits ? pte : 0;
 }
 

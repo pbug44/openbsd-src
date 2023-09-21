@@ -560,7 +560,7 @@ initriscv(struct riscv_bootparams *rbp)
 	/* Set the per-CPU pointer. */
 	__asm volatile("mv tp, %0" :: "r"(&cpu_info_primary));
 
-#if MANGOPI
+#if 0
 	printf("rbp->kern_phys=%lX, KERNBASE=%lX, rpb->kern_l1pt=%lX,"
 		"rbp->dtbp_phys=%lX, rbp->dtbp_virt=%lX, rbp->kern_stack=%lX\n", 
 		rbp->kern_phys, KERNBASE, rbp->kern_l1pt, rbp->dtbp_phys,
@@ -828,6 +828,13 @@ initriscv(struct riscv_bootparams *rbp)
 	 * vm_page structures.
 	 */
 #if MANGOPI
+	/*
+	 * Mango Pi has 1 GB RAM when this function is called and it's
+	 * misaligned bad things will happen, in fact we don't need
+	 * to growkernel() here for the mango pi.  All our RAM has
+	 * already been mapped.
+	 */
+	
 	pmap_growkernel((VM_MIN_KERNEL_ADDRESS + 1024 * 1024 * 1024 +
 	    physmem * sizeof(struct vm_page)) & ~L1_OFFSET);
 #else

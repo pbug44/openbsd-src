@@ -87,7 +87,7 @@ com_fdt_init_cons(void)
 		return;
 
 
-	//cn_tab = &com_fdt_cons;
+	cn_tab = &com_fdt_cons;
 }
 
 int
@@ -145,6 +145,10 @@ com_fdt_attach(struct device *parent, struct device *self, void *aux)
 	if (OF_is_compatible(faa->fa_node, "snps,dw-apb-uart") ||
 	    OF_is_compatible(faa->fa_node, "marvell,armada-38x-uart")) {
 		sc->sc_uarttype = COM_UART_DW_APB;
+#if MANGOPI
+		sc->sc_uarttype = COM_UART_DW_APB_D1;
+#endif
+
 		intr = com_fdt_intr_designware;
 	}
 
