@@ -828,13 +828,6 @@ initriscv(struct riscv_bootparams *rbp)
 	 * vm_page structures.
 	 */
 #if MANGOPI
-	/*
-	 * Mango Pi has 1 GB RAM when this function is called and it's
-	 * misaligned bad things will happen, in fact we don't need
-	 * to growkernel() here for the mango pi.  All our RAM has
-	 * already been mapped.
-	 */
-	
 	pmap_growkernel((VM_MIN_KERNEL_ADDRESS + 1024 * 1024 * 1024 +
 	    physmem * sizeof(struct vm_page)) & ~L1_OFFSET);
 #else
@@ -854,6 +847,8 @@ initriscv(struct riscv_bootparams *rbp)
 
 	softintr_init();
 	splraise(IPL_IPI);
+
+	
 }
 
 char bootargs[256];

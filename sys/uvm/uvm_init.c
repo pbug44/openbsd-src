@@ -78,7 +78,6 @@ uvm_init(void)
 	/*
 	 * Ensure that the hardware set the page size.
 	 */
-	printf("uvmexp.pagesize==;\n");
 	if (uvmexp.pagesize == 0) {
 		panic("uvm_init: page size not set");
 	}
@@ -91,7 +90,6 @@ uvm_init(void)
 	 * kvm_end will be set to the area of kernel virtual memory which
 	 * is available for general use.
 	 */
-	printf("uvm_page_init();\n");
 	uvm_page_init(&kvm_start, &kvm_end);
 
 	/*
@@ -100,58 +98,49 @@ uvm_init(void)
 	 * Allocates the static pool of vm_map_entry structures that are
 	 * used for "special" kernel maps (e.g. kernel_map, kmem_map, etc...).
 	 */
-	printf("uvm_map_init();\n");
 	uvm_map_init();
 
 	/*
 	 * Setup the kernel's virtual memory data structures.  This includes
 	 * setting up the kernel_map/kernel_object.
 	 */
-	printf("uvm_km_init(vm_min_kernel_address, kvm_start, kvm_end);\n");
 	uvm_km_init(vm_min_kernel_address, kvm_start, kvm_end);
 
 	/*
 	 * step 4.5: init (tune) the fault recovery code.
 	 */
-	printf("uvmfault_init();\n");
 	uvmfault_init();
 
 	/*
 	 * Init the pmap module.  The pmap module is free to allocate
 	 * memory for its private use (e.g. pvlists).
 	 */
-	printf("pmap_init();\n");
 	pmap_init();
 
 	/*
 	 * step 6: init uvm_km_page allocator memory.
 	 */
-	printf("uvm_km_page_init();\n");
 	uvm_km_page_init();
 
 	/*
 	 * Make kernel memory allocators ready for use.
 	 * After this call the malloc memory allocator can be used.
 	 */
-	printf("kmeminit();\n");
 	kmeminit();
 
 	/*
 	 * step 7.5: init the dma allocator, which is backed by pools.
 	 */
-	printf("dma_alloc_init();\n");
 	dma_alloc_init();
 
 	/*
 	 * Init all pagers and the pager_map.
 	 */
-	printf("uvm_pager_init();\n");
 	uvm_pager_init();
 
 	/*
 	 * step 9: init anonymous memory system
 	 */
-	printf("amap_init();\n");
 	amap_init();
 
 	/*
@@ -185,7 +174,6 @@ uvm_init(void)
 	/*
 	 * Init anonymous memory systems.
 	 */
-	printf("uvm_anon_init();\n");
 	uvm_anon_init();
 
 #ifndef SMALL_KERNEL

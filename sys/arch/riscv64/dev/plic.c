@@ -340,7 +340,7 @@ plic_irq_handler(void *frame)
 		bus_space_write_4(sc->sc_iot, sc->sc_ioh,
 				PLIC_CLAIM(sc, cpu), pending);
 
-//#define DEBUG_INTC
+#define DEBUG_INTC
 #ifdef DEBUG_INTC
 		if (handled == 0) {
 			printf("plic handled == 0 on pending %d\n", pending);

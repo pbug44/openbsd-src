@@ -98,15 +98,11 @@ _start_kern_bootstrap:
 	lla	s1, pagetable_l2	/* init s1 to pagetable l2 */
 	mv	s3, s9			/* a PA address */
 
-	li	t0, L1_SIZE
-	rem	t0, s3, t0
-	sub	s3, s3, t0		/* round down to nearest GiB */
-
 	li	a3, KERNBASE
 
-	li	a4, 1			/* 1 iteration */
+	li	a4, 511			/* 512 iteration */
 	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
-	li	a6, (PTE_KERN| PTE_C | PTE_B)
+	li	a6, (PTE_KERN|PTE_X|PTE_C|PTE_B)
 	li	a7, PTE_PPN1_S
 
 	jal	rv64_generic_pte
@@ -114,6 +110,7 @@ _start_kern_bootstrap:
 	mv	a0, s5			/* restore a0 */
 	mv	a1, s6			/* restore a1 */
 
+#if 0
 	mv	s5, a0			/* save a0 */
 	mv	s6, a1		 	/* save a1 */
 
@@ -134,6 +131,7 @@ _start_kern_bootstrap:
 
 	mv	a0, s5			/* restore a0 */
 	mv	a1, s6			/* restore a1 */
+#endif
 
 	/* Create an L1 page for early devmap */
 	mv	s5, a0			/* save a0 */

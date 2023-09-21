@@ -1205,7 +1205,7 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 		/* gigapages */
 		pn = (pa / PAGE_SIZE);
 #if MANGOPI
-		entry = (PTE_KERN);
+		entry = (PTE_KERN|PTE_B|PTE_C);
 #else
 		entry = PTE_KERN;
 #endif
@@ -1216,7 +1216,7 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 		 * pagetable, since we're early in the boot and most likely
 		 * on one CPU there is no locking required really.  Not that
 		 * the C906 has many more cores anyhow.  solution:
-		 * turn on the PTE_B and PTE_B bits in locore.S
+		 * turn on the PTE_B and PTE_C bits in locore.S
 		 */
 
 		atomic_store_64(&l1[l1_slot], entry);
@@ -1515,11 +1515,9 @@ pmap_extract(pmap_t pm, vaddr_t va, paddr_t *pap)
 	struct pte_desc *pted;
 	paddr_t pa;
 
-	printf("in pmap_extract\n");
 	pmap_lock(pm);
 	pted = pmap_vp_lookup(pm, va, NULL);
 	if (!pted || !PTED_VALID(pted)) {
-		printf("pmap_extract: pted=%p is %s\n", pted, (pted == NULL) ? "NULL" : "not valid");
 		pmap_unlock(pm);
 		return 0;
 	}
@@ -1685,7 +1683,7 @@ pmap_pte_update(struct pte_desc *pted, uint64_t *pl3)
 		access_bits = ap_bits_user[pted->pted_pte & PROT_MASK];
 
 #if MANGOPI
-	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V;
+	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V | PTE_B | PTE_C;
 #else
 	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V;
 #endif

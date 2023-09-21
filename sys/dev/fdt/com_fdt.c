@@ -60,6 +60,7 @@ com_fdt_init_cons(void)
 	    (node = fdt_find_cons("ti,omap3-uart")) == NULL &&
 	    (node = fdt_find_cons("ti,omap4-uart")) == NULL)
 			return;
+
 	if (fdt_get_reg(node, 0, &reg))
 		return;
 
@@ -87,7 +88,7 @@ com_fdt_init_cons(void)
 		return;
 
 
-	cn_tab = &com_fdt_cons;
+	//cn_tab = &com_fdt_cons;
 }
 
 int
@@ -146,9 +147,12 @@ com_fdt_attach(struct device *parent, struct device *self, void *aux)
 	    OF_is_compatible(faa->fa_node, "marvell,armada-38x-uart")) {
 		sc->sc_uarttype = COM_UART_DW_APB;
 #if MANGOPI
-		sc->sc_uarttype = COM_UART_DW_APB_D1;
+		sc->sc_uarttype = COM_UART_DW_APB_D1;	/* 64 byte fifo fd */
+		SET(sc->sc_hwflags, COM_HW_CONSOLE);
+		SET(sc->sc_swflags, COM_SW_SOFTCAR);
+		comconsfreq = sc->sc_frequency;
+		comconsrate = B115200;
 #endif
-
 		intr = com_fdt_intr_designware;
 	}
 

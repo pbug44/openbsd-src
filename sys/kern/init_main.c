@@ -191,23 +191,16 @@ main(void *framep)
 	kubsan_init();
 #endif
 
-	printf("before a bunch of lock_inits\n");
 	WITNESS_INITIALIZE();
 
 	KERNEL_LOCK_INIT();
 	SCHED_LOCK_INIT();
 
-	printf("before rw_obj_init()\n");
 	rw_obj_init();
-	printf("before uvm_init()\n");
 	uvm_init();
-	printf("before disk_init()\n");
 	disk_init();		/* must come before autoconfiguration */
-	printf("before tty_init()\n");
 	tty_init();		/* initialise tty's */
-	printf("before cpu_startup()\n");
 	cpu_startup();
-	printf("after cpu_startup\n");
 
 	random_start(boothowto & RB_GOODRANDOM);	/* Start the flow */
 
