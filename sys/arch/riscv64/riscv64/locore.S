@@ -98,9 +98,34 @@ _start_kern_bootstrap:
 	lla	s1, pagetable_l2	/* init s1 to pagetable l2 */
 	mv	s3, s9			/* a PA address */
 
+	li	t0, L1_SIZE
+	rem	t0, s3, t0
+	sub	s3, s3, t0		/* round down to nearest GiB */
+
 	li	a3, KERNBASE
 
-	li	a4, 512			/* 512 iterations */
+	li	a4, 1			/* 512 iterations */
+	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
+	li	a6, (PTE_KERN)
+	li	a7, PTE_PPN1_S
+
+	jal	rv64_generic_pte
+
+	mv	a0, s5			/* restore a0 */
+	mv	a1, s6			/* restore a1 */
+
+	mv	s5, a0			/* save a0 */
+	mv	s6, a1		 	/* save a1 */
+
+	/* Level 2 superpages (512 x 2MiB) */
+	lla	s1, pagetable_l2	/* init s1 to pagetable l2 */
+	mv	s3, s9			/* a PA address */
+
+	li	a3, KERNBASE
+	li	t0, L2_SIZE
+	add	a3, a3, t0
+
+	li	a4, 511			/* 512 iterations */
 	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
 	li	a6, (PTE_KERN | PTE_X)
 	li	a7, PTE_PPN1_S
@@ -153,6 +178,10 @@ _start_kern_bootstrap:
 	mv	a1, s6			/* restore a1 */
 
 	/* Page tables END */
+
+	/* turn off any possible FP bits set */
+	li	t0, SSTATUS_FS_MASK
+	csrc	sstatus, t0
 
 	/* Setup supervisor trap vector */
 	lla	t0, va
@@ -251,8 +280,8 @@ get_physmem:
  * a6 - perms           (PTE_R|PTE_W|PTE_X is LEAF, otherwise BRANCH PTE)
  * a7 - pagenumber shift (PTE_PPN0_S for L1)
  *
- * s1 - the respective pagetable address
- * s3 - if we're branch entry (determined by perms) use this s3 otherwise a3
+ * s1 - the respective pagetable address for writing in
+ * s3 - the physical address or the pagetable we're referring to
  *
  */
 
