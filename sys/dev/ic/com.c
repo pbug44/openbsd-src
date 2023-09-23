@@ -1483,18 +1483,12 @@ com_attach_subr(struct com_softc *sc)
 		sc->sc_fifolen = 256;
 		break;
 	case COM_UART_DW_APB:
-		/* FALLTHROUGH */
-	case COM_UART_DW_APB_D1:
-
 		printf(": dw16550");
 		SET(sc->sc_hwflags, COM_HW_FIFO);
 		cpr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, com_cpr << 2);
 		sc->sc_fifolen = CPR_FIFO_MODE(cpr) * 16;
 		if (sc->sc_fifolen) {
 			printf(", %d byte fifo\n", sc->sc_fifolen);
-		} else if (sc->sc_uarttype == COM_UART_DW_APB_D1) {
-			printf(", 64 byte fifo (quirk)\n");
-			sc->sc_fifolen = 64;
 		} else {
 			printf("\n");
 			/*
@@ -1528,9 +1522,6 @@ com_attach_subr(struct com_softc *sc)
 	/* DW-APB UART cannot turn off FIFO here (ddb will not work) */
 	fifo = (sc->sc_uarttype == COM_UART_DW_APB) ?
 		(FIFO_ENABLE | FIFO_TRIGGER_1) : 0;
-	if (sc->sc_uarttype == COM_UART_DW_APB_D1) {
-		sc->sc_uarttype = COM_UART_DW_APB;
-	}
 
 	com_write_reg(sc, com_fifo, fifo | FIFO_RCV_RST | FIFO_XMT_RST);
 	if (ISSET(com_read_reg(sc, com_lsr), LSR_RXRDY))

@@ -105,7 +105,6 @@ struct com_softc {
 #define	COM_UART_OX16C950	0x11		/* 128 byte fifo */
 #define	COM_UART_XR17V35X	0x12		/* 256 byte fifo */
 #define	COM_UART_DW_APB		0x13		/* configurable */
-#define	COM_UART_DW_APB_D1	0x14		/* Mango Pi D1 - 64 byte fifo */
 
 	u_char sc_hwflags;
 #define	COM_HW_NOIEN	0x01

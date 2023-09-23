@@ -664,6 +664,9 @@ plic_set_priority(int irq, uint32_t pri)
 	else
 		prival = pri - 4;
 
+#if MANGOPI
+	if (prival)
+#endif
 	bus_space_write_4(sc->sc_iot, sc->sc_ioh,
 			PLIC_PRIORITY(irq), prival);
 }
@@ -681,6 +684,10 @@ plic_set_threshold(int cpu, uint32_t threshold)
 		prival = IPL_HIGH - 4; // XXX Device-specific high threshold
 	else // everything else
 		prival = threshold - 4; // XXX Device-specific threshold offset
+
+#if MANGOPI
+	if (prival && prival != (IPL_HIGH - 4))
+#endif
 
 	bus_space_write_4(sc->sc_iot, sc->sc_ioh,
 			PLIC_THRESHOLD(sc, cpu), prival);

@@ -277,6 +277,30 @@ VP_IDX3(vaddr_t va)
  * seperately (see pmap_pte_update()) since r=0, w=0, x=0 is reserved
  * for non-leaf page table entries.
  */
+
+#if MANGOPI
+const pt_entry_t ap_bits_user[8] = {
+	[PROT_NONE]				= 0,
+	[PROT_READ]				= PTE_U|PTE_A|PTE_R | PTE_TH,
+	[PROT_WRITE]				= PTE_U|PTE_A|PTE_R|PTE_D|PTE_W | PTE_TH,
+	[PROT_WRITE|PROT_READ]			= PTE_U|PTE_A|PTE_R|PTE_D|PTE_W | PTE_TH,
+	[PROT_EXEC]				= PTE_U|PTE_A|PTE_X|PTE_TH,
+	[PROT_EXEC|PROT_READ]			= PTE_U|PTE_A|PTE_X|PTE_R|PTE_TH,
+	[PROT_EXEC|PROT_WRITE]			= PTE_U|PTE_A|PTE_X|PTE_R|PTE_D|PTE_W|PTE_TH,
+	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_U|PTE_A|PTE_X|PTE_R|PTE_D|PTE_W|PTE_TH,
+};
+
+const pt_entry_t ap_bits_kern[8] = {
+	[PROT_NONE]				= 0,
+	[PROT_READ]				= PTE_A|PTE_R|PTE_TH,
+	[PROT_WRITE]				= PTE_A|PTE_R|PTE_D|PTE_W|PTE_TH,
+	[PROT_WRITE|PROT_READ]			= PTE_A|PTE_R|PTE_D|PTE_W|PTE_TH,
+	[PROT_EXEC]				= PTE_A|PTE_X|PTE_TH,
+	[PROT_EXEC|PROT_READ]			= PTE_A|PTE_X|PTE_R|PTE_TH,
+	[PROT_EXEC|PROT_WRITE]			= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W|PTE_TH,
+	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W|PTE_TH,
+};
+#else
 const pt_entry_t ap_bits_user[8] = {
 	[PROT_NONE]				= 0,
 	[PROT_READ]				= PTE_U|PTE_A|PTE_R,
@@ -288,18 +312,7 @@ const pt_entry_t ap_bits_user[8] = {
 	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_U|PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
 };
 
-#if MANGOPI
-const pt_entry_t ap_bits_kern[8] = {
-	[PROT_NONE]				= 0,
-	[PROT_READ]				= PTE_A|PTE_R,
-	[PROT_WRITE]				= PTE_A|PTE_R|PTE_D|PTE_W,
-	[PROT_WRITE|PROT_READ]			= PTE_A|PTE_R|PTE_D|PTE_W,
-	[PROT_EXEC]				= PTE_A|PTE_X,
-	[PROT_EXEC|PROT_READ]			= PTE_A|PTE_X|PTE_R,
-	[PROT_EXEC|PROT_WRITE]			= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
-	[PROT_EXEC|PROT_WRITE|PROT_READ]	= PTE_A|PTE_X|PTE_R|PTE_D|PTE_W,
-};
-#else
+
 const pt_entry_t ap_bits_kern[8] = {
 	[PROT_NONE]				= 0,
 	[PROT_READ]				= PTE_A|PTE_R,
@@ -995,7 +1008,7 @@ VP_Lx(paddr_t pa)
 	// by the lack of PTE_R / PTE_X on an entry with PTE_V set. For both
 	// a PTD and PTE, the PTE_V bit is set.
 #if MANGOPI
-	return (((pa & PTE_RPGN) >> PAGE_SHIFT) << PTE_PPN0_S) | PTE_V;
+	return (((pa & PTE_RPGN) >> PAGE_SHIFT) << PTE_PPN0_S) | PTE_V | PTE_TH;
 #else
 	return (((pa & PTE_RPGN) >> PAGE_SHIFT) << PTE_PPN0_S) | PTE_V;
 #endif
@@ -1205,7 +1218,7 @@ pmap_bootstrap_dmap(vaddr_t kern_l1, paddr_t min_pa, paddr_t max_pa)
 		/* gigapages */
 		pn = (pa / PAGE_SIZE);
 #if MANGOPI
-		entry = (PTE_KERN|PTE_B|PTE_C);
+		entry = (PTE_KERN|PTE_TH);
 #else
 		entry = PTE_KERN;
 #endif
@@ -1683,7 +1696,7 @@ pmap_pte_update(struct pte_desc *pted, uint64_t *pl3)
 		access_bits = ap_bits_user[pted->pted_pte & PROT_MASK];
 
 #if MANGOPI
-	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V | PTE_B | PTE_C;
+	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V | PTE_TH;
 #else
 	pte = VP_Lx(pted->pted_pte) | access_bits | PTE_V;
 #endif

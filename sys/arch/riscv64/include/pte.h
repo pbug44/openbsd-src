@@ -57,7 +57,7 @@
 #define PTE_B		(1ULL << 61)	/* bufferable if set */
 #define PTE_T		(1ULL << 60)	/* trust not used in the C906 */
 
-#define PTE_THEAD	(PTE_SO | PTE_C | PTE_B)
+#define PTE_TH		(PTE_C | PTE_B)
 
 #endif /* MANGOPI */
 

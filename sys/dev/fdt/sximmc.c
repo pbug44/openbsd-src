@@ -298,7 +298,8 @@ sximmc_match(struct device *parent, void *match, void *aux)
 	    OF_is_compatible(faa->fa_node, "allwinner,sun7i-a20-mmc") ||
 	    OF_is_compatible(faa->fa_node, "allwinner,sun9i-a80-mmc") ||
 	    OF_is_compatible(faa->fa_node, "allwinner,sun50i-a64-mmc") ||
-	    OF_is_compatible(faa->fa_node, "allwinner,sun50i-a64-emmc"));
+	    OF_is_compatible(faa->fa_node, "allwinner,sun50i-a64-emmc") ||
+	    OF_is_compatible(faa->fa_node, "allwinner,sun20i-d1-mmc"));
 }
 
 int

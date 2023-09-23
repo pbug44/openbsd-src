@@ -83,7 +83,7 @@ _start_kern_bootstrap:
 	li	a3, KERNBASE
 	li	a4, 1			/* 1 iteration */
 	li	a5, L1_SHIFT		/* L1 operation SHIFT */
-	li	a6, PTE_V | PTE_C | PTE_B
+	li	a6, (PTE_V | PTE_TH)
 	li	a7, PTE_PPN0_S		/* s3 is shifted by PTE_PPN0_S */
 
 	jal	rv64_generic_pte
@@ -102,7 +102,7 @@ _start_kern_bootstrap:
 
 	li	a4, 511			/* 512 iteration */
 	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
-	li	a6, (PTE_KERN|PTE_X|PTE_C|PTE_B)
+	li	a6, (PTE_KERN|PTE_X|PTE_TH)
 	li	a7, PTE_PPN1_S
 
 	jal	rv64_generic_pte
@@ -124,7 +124,7 @@ _start_kern_bootstrap:
 
 	li	a4, 511			/* 511 iterations */
 	li	a5, L2_SHIFT		/* L2_SHIFT = 2MiB worth of bits */
-	li	a6, (PTE_KERN | PTE_X| PTE_C | PTE_B)
+	li	a6, (PTE_KERN | PTE_X| PTE_TH)
 	li	a7, PTE_PPN1_S
 
 	jal	rv64_generic_pte
@@ -143,7 +143,7 @@ _start_kern_bootstrap:
 	li	a3, (VM_MAX_KERNEL_ADDRESS - L1_SIZE)
 	li	a4, 1			/* 1 iteration */
 	li	a5, L1_SHIFT		/* L1 operation SHIFT */
-	li	a6, PTE_V | PTE_C | PTE_B
+	li	a6, (PTE_V | PTE_TH)
 	li	a7, PTE_PPN0_S		/* s3 is shifted by PTE_PPN0_S */
 
 	jal	rv64_generic_pte
@@ -167,7 +167,7 @@ _start_kern_bootstrap:
 	li	a3, (VM_MAX_KERNEL_ADDRESS - L1_SIZE)
 	li	a4, 512
 	li	a5, L2_SHIFT
-	li	a6, (PTE_KERN | PTE_C | PTE_B)
+	li	a6, (PTE_KERN | PTE_TH)
 	li	a7, PTE_PPN1_S		/* PPN1 shift */
 
 	jal	rv64_generic_pte

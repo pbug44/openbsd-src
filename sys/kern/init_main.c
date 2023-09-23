@@ -710,6 +710,9 @@ start_init(void *arg)
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 */
+#if MANGOPI
+		printf("hello, world\n");
+#endif
 		if ((error = sys_execve(p, &args, retval)) == EJUSTRETURN) {
 			KERNEL_UNLOCK();
 			return;

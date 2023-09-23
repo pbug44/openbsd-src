@@ -146,13 +146,6 @@ com_fdt_attach(struct device *parent, struct device *self, void *aux)
 	if (OF_is_compatible(faa->fa_node, "snps,dw-apb-uart") ||
 	    OF_is_compatible(faa->fa_node, "marvell,armada-38x-uart")) {
 		sc->sc_uarttype = COM_UART_DW_APB;
-#if MANGOPI
-		sc->sc_uarttype = COM_UART_DW_APB_D1;	/* 64 byte fifo fd */
-		SET(sc->sc_hwflags, COM_HW_CONSOLE);
-		SET(sc->sc_swflags, COM_SW_SOFTCAR);
-		comconsfreq = sc->sc_frequency;
-		comconsrate = B115200;
-#endif
 		intr = com_fdt_intr_designware;
 	}
 
@@ -187,6 +180,25 @@ com_fdt_intr_designware(void *cookie)
 	struct com_softc *sc = cookie;
 
 	com_read_reg(sc, com_usr);
+#if MANGOPI
+	{ uint32_t status; uint32_t lcr;
+	lcr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, 0x000c);	/* LCR */
+	printf("LCR status: %X\n", lcr);
+
+	lcr |= ((1 << 7) | 0x3);	/* DLL latch on, 8 bits datalength */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
+	
+	status = 13;
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0000, status);
+	
+	lcr &= ~(1 << 7);
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
+
+	lcr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, 0x000c);	/* LCR */
+	printf("LCR status: %X\n", lcr);
+
+	}
+#endif
 
 	return comintr(sc);
 }

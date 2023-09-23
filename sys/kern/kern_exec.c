@@ -292,6 +292,9 @@ sys_execve(struct proc *p, void *v, register_t *retval)
 	 * Mark this process as "leave me alone, I'm execing".
 	 */
 	atomic_setbits_int(&pr->ps_flags, PS_INEXEC);
+#if MANGOPI
+	printf("leave me alone, I'm execing\n");
+#endif
 
 	NDINIT(&nid, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	nid.ni_pledge = PLEDGE_EXEC;

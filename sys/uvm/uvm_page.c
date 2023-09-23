@@ -476,7 +476,6 @@ uvm_page_physget(paddr_t *paddrp)
 		seg->start = seg->avail_start;
 
 		/* nothing left?   nuke it */
-		printf("before nothing left?\n");
 		if (seg->avail_start == seg->end) {
 			if (vm_nphysseg == 1)
 				panic("uvm_page_physget: out of memory!");
