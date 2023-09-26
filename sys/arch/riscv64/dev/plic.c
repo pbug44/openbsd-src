@@ -205,6 +205,10 @@ plic_attach(struct device *parent, struct device *dev, void *aux)
 	sc->sc_isrcs = mallocarray(PLIC_MAX_IRQS, sizeof(struct plic_irqsrc),
 			M_DEVBUF, M_ZERO | M_NOWAIT);
 
+	/* we use NOWAIT here, so it can return NULL */
+	if (sc->sc_isrcs == NULL)
+		panic("%s: mallocarray", __func__);
+
 	for (irq = 1; irq <= sc->sc_ndev; irq++) {
 		TAILQ_INIT(&sc->sc_isrcs[irq].is_list);
 		plic_set_priority(irq, 0);// Mask interrupt

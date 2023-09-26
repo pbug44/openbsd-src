@@ -49,6 +49,7 @@
 #define	com_mcr		4	/* modem control register (R/W) */
 #define	com_lsr		5	/* line status register (R/W) */
 #define	com_msr		6	/* modem status register (R/W) */
+// MANGOPI calls this MCR 0x0010
 #define com_scratch	7	/* scratch register (R/W) */
 
 /*
@@ -56,3 +57,7 @@
  */
 #define	com_usr		31	/* UART status register (R) */
 #define	com_cpr		61	/* component parameter register (R) */
+
+#if MANGOPI
+#define com_fcc		60	/* UART FIFO Clock Control register (R/W) */
+#endif

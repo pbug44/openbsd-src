@@ -87,8 +87,7 @@ com_fdt_init_cons(void)
 	if (bus_space_map(comconsiot, reg.addr, reg.size, 0, &comconsioh))
 		return;
 
-
-	//cn_tab = &com_fdt_cons;
+	cn_tab = &com_fdt_cons;
 }
 
 int
@@ -147,6 +146,12 @@ com_fdt_attach(struct device *parent, struct device *self, void *aux)
 	    OF_is_compatible(faa->fa_node, "marvell,armada-38x-uart")) {
 		sc->sc_uarttype = COM_UART_DW_APB;
 		intr = com_fdt_intr_designware;
+#if MANGOPI
+		if (freq > 75000000)
+			panic("bad frequency %u on APB1\n", freq);
+
+		printf(" APB1 freq=%u\n", freq);
+#endif
 	}
 
 	if (OF_is_compatible(faa->fa_node, "ti,omap3-uart") ||
@@ -167,7 +172,6 @@ com_fdt_attach(struct device *parent, struct device *self, void *aux)
 	}
 
 	pinctrl_byname(faa->fa_node, "default");
-
 	com_attach_subr(sc);
 
 	fdt_intr_establish(faa->fa_node, IPL_TTY, intr,
@@ -180,25 +184,6 @@ com_fdt_intr_designware(void *cookie)
 	struct com_softc *sc = cookie;
 
 	com_read_reg(sc, com_usr);
-#if MANGOPI
-	{ uint32_t status; uint32_t lcr;
-	lcr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, 0x000c);	/* LCR */
-	printf("LCR status: %X\n", lcr);
-
-	lcr |= ((1 << 7) | 0x3);	/* DLL latch on, 8 bits datalength */
-	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
-	
-	status = 13;
-	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0000, status);
-	
-	lcr &= ~(1 << 7);
-	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
-
-	lcr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, 0x000c);	/* LCR */
-	printf("LCR status: %X\n", lcr);
-
-	}
-#endif
 
 	return comintr(sc);
 }

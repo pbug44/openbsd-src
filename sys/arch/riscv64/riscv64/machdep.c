@@ -745,6 +745,9 @@ initriscv(struct riscv_bootparams *rbp)
 	riscv64_bs_tag._space_map = pmap_bootstrap_bs_map;
 
 	consinit();
+#if MANGOPI
+	printf("after consinit()\n");
+#endif
 
 	riscv64_bs_tag._space_map = map_func_save;
 

@@ -1485,8 +1485,16 @@ com_attach_subr(struct com_softc *sc)
 	case COM_UART_DW_APB:
 		printf(": dw16550");
 		SET(sc->sc_hwflags, COM_HW_FIFO);
+
+#ifndef MANGOPI
 		cpr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, com_cpr << 2);
 		sc->sc_fifolen = CPR_FIFO_MODE(cpr) * 16;
+#else
+		cpr = bus_space_read_4(sc->sc_iot, sc->sc_ioh, (com_fcc << 2));
+		sc->sc_fifolen = (cpr >> 8);
+		sc->sc_fifolen = 1;
+#endif
+
 		if (sc->sc_fifolen) {
 			printf(", %d byte fifo\n", sc->sc_fifolen);
 		} else {
@@ -1508,7 +1516,7 @@ com_attach_subr(struct com_softc *sc)
 	}
 
 #ifdef COM_CONSOLE
-	if (!ISSET(sc->sc_hwflags, COM_HW_CONSOLE))
+	//if (!ISSET(sc->sc_hwflags, COM_HW_CONSOLE))
 #endif
 		if (sc->sc_fifolen < 256)
 			com_fifo_probe(sc);
@@ -1520,8 +1528,86 @@ com_attach_subr(struct com_softc *sc)
 
 	/* clear and disable fifo */
 	/* DW-APB UART cannot turn off FIFO here (ddb will not work) */
-	fifo = (sc->sc_uarttype == COM_UART_DW_APB) ?
-		(FIFO_ENABLE | FIFO_TRIGGER_1) : 0;
+	fifo = 0;
+
+	if (sc->sc_uarttype == COM_UART_DW_APB) {
+		if (sc->sc_fifolen >= 64) {
+			fifo = (FIFO_ENABLE | FIFO_TRIGGER_1);
+		} else {
+			fifo = (FIFO_ENABLE | FIFO_TRIGGER_1);
+		}
+	}
+
+#if MANGOPI
+	{ uint32_t status; uint32_t lcr;
+
+	/* write 1 to fcc */
+	status = 0x1;
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0008, status);
+	
+	/* turn HALT to on, disabling TX's */
+	status = 0x2;	/* 0x2 == change configure at busy */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x00a4, status);
+
+	/* set the UART LCR to latch */
+	lcr = 0x3;
+	status = lcr | (1 << 7);
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, status);
+
+	status = 0x4;	/* update cfg */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x00a4, status);
+
+	/* reset the DLL and DLH to wished for values */
+
+	status = 4;		/* Latch high */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0004, status);
+
+	status = 0;		/* latch low */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0000, status);
+
+
+	status = 0;		/* Latch high */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0004, status);
+
+	status = 13;		/* latch low, 115200 */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0000, status);
+
+	/* write config to LCR turn on 8 bits, no parity, 1 stop bit */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
+
+	while (bus_space_read_4(sc->sc_iot, sc->sc_ioh, 0x00a4) & 4)
+		delay(100);
+
+	status = 13;		/* RBR/THR */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0000, status);
+
+	status = 0;		/* IER */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0004, status);
+	
+
+	/* set HALT to 0 to enable tx */
+	status = 0;
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x00a4, status);
+
+	lcr = 0x3;
+	SET(sc->sc_lcr, lcr);
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x000c, lcr);
+
+	//status = (fifo)
+	status = (fifo);
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0008, status);
+
+	/* mcr */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0010, 0);
+
+	/* turn on IER */
+	status = 0xf | (1 << 7);	/* 15 */
+	bus_space_write_4(sc->sc_iot, sc->sc_ioh, 0x0004, status);
+
+
+	}
+#endif
+#if 0
 
 	com_write_reg(sc, com_fifo, fifo | FIFO_RCV_RST | FIFO_XMT_RST);
 	if (ISSET(com_read_reg(sc, com_lsr), LSR_RXRDY))
@@ -1530,6 +1616,7 @@ com_attach_subr(struct com_softc *sc)
 
 	sc->sc_mcr = 0;
 	com_write_reg(sc, com_mcr, sc->sc_mcr);
+#endif
 
 #ifdef COM_CONSOLE
 	if (ISSET(sc->sc_hwflags, COM_HW_CONSOLE)) {
@@ -1558,7 +1645,7 @@ com_attach_subr(struct com_softc *sc)
 	 * If there are no enable/disable functions, assume the device
 	 * is always enabled.
 	 */
-	if (!sc->enable)
+	if (!sc->enable)		/* XXX - enabled or enable? */
 		sc->enabled = 1;
 
 #ifdef COM_CONSOLE

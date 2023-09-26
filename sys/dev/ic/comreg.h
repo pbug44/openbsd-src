@@ -92,6 +92,10 @@
 #define	FIFO_TRIGGER_4	0x40	/* ibid 4 */
 #define	FIFO_TRIGGER_8	0x80	/* ibid 8 */
 #define	FIFO_TRIGGER_14	0xc0	/* ibid 14 */
+#if MANGOPI
+//#define FIFO_DW_TRIGGER_8	((1 << 6) | (1 << 7) | (1 << 4) | (1 << 5))
+#define FIFO_DW_TRIGGER_8	(0x80 | (1 << 6)) /* 0.25 full on both */
+#endif
 /* ST16650 fifo control register */
 #define FIFO_RCV_TRIGGER_8	0x00
 #define FIFO_RCV_TRIGGER_16	0x40
