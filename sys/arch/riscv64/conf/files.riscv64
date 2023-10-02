@@ -83,6 +83,11 @@ device	plic
 attach	plic at fdt
 file	arch/riscv64/dev/plic.c			plic
 
+# AW D1 IC
+device	aw_d1_intc
+attach	aw_d1_intc at fdt
+file	arch/riscv64/dev/aw_d1_intc.c		aw_d1_intc
+
 # PolarFire SoC MSS clock controller
 device	mpfclock
 attach	mpfclock at fdt

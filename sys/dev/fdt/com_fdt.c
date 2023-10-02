@@ -87,7 +87,7 @@ com_fdt_init_cons(void)
 	if (bus_space_map(comconsiot, reg.addr, reg.size, 0, &comconsioh))
 		return;
 
-	cn_tab = &com_fdt_cons;
+	//cn_tab = &com_fdt_cons;
 }
 
 int

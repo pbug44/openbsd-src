@@ -621,7 +621,8 @@ riscv_do_pending_intr(int pcpl)
 	intr_restore(sie);
 }
 
-void riscv_set_intr_func(int (*raise)(int), int (*lower)(int),
+void
+riscv_set_intr_func(int (*raise)(int), int (*lower)(int),
     void (*x)(int), void (*setipl)(int))
 {
 	riscv_intr_func.raise		= raise;
@@ -630,7 +631,8 @@ void riscv_set_intr_func(int (*raise)(int), int (*lower)(int),
 	riscv_intr_func.setipl		= setipl;
 }
 
-void riscv_set_intr_handler(void (*intr_handle)(void *))
+void
+riscv_set_intr_handler(void (*intr_handle)(void *))
 {
 	riscv_intr_dispatch		= intr_handle;
 }

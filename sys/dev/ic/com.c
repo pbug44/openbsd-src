@@ -1516,7 +1516,7 @@ com_attach_subr(struct com_softc *sc)
 	}
 
 #ifdef COM_CONSOLE
-	//if (!ISSET(sc->sc_hwflags, COM_HW_CONSOLE))
+	if (!ISSET(sc->sc_hwflags, COM_HW_CONSOLE))
 #endif
 		if (sc->sc_fifolen < 256)
 			com_fifo_probe(sc);

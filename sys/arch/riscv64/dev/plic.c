@@ -33,6 +33,9 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/fdt.h>
 
+void    aw_d1_intc_intr_disestablish(void *);
+void    aw_d1_intc_intr_establish(int, int, int (*)(void *), void *, char *);
+
 /*
  * This driver implements a version of the RISC-V PLIC with the actual layout
  * specified in chapter 8 of the SiFive U5 Coreplex Series Manual:
@@ -104,6 +107,7 @@ struct plic_softc {
 	struct plic_context	sc_contexts[MAXCPUS];
 	int			sc_ndev;
 	struct interrupt_controller	sc_intc;
+	int			sc_thead;
 };
 struct plic_softc *plic = NULL;
 
@@ -315,6 +319,11 @@ plic_attach(struct device *parent, struct device *dev, void *aux)
 	// sc->sc_intc.ic_cpu_enable = XXX Per-CPU Initialization?
 	sc->sc_intc.ic_barrier = plic_intr_barrier;
 
+	if (OF_is_compatible(faa->fa_node, "thead,c900-plic"))
+		sc->sc_thead = 1;
+	else
+		sc->sc_thead = 0;
+
 	riscv_intr_register_fdt(&sc->sc_intc);
 
 	printf("\n");
@@ -429,12 +438,19 @@ plic_intr_establish(int irqno, int level, struct cpu_info *ci,
 	ih->ih_name = name;
 	ih->ih_ci = ci;
 
+
 	sie = intr_disable();
 
 	TAILQ_INSERT_TAIL(&sc->sc_isrcs[irqno].is_list, ih, ih_list);
 
 	if (name != NULL)
 		evcount_attach(&ih->ih_count, name, &ih->ih_irq);
+
+	if (sc->sc_thead) {
+		aw_d1_intc_intr_establish(irqno, level, func, arg, name);
+		intr_restore(sie);
+		return (ih);
+	}
 
 #ifdef DEBUG_INTC
 	printf("%s irq %d level %d [%s]\n", __func__, irqno, level,
@@ -463,6 +479,10 @@ plic_intr_disestablish(void *cookie)
 	u_long sie;
 
 	sie = intr_disable();
+
+	if (sc->sc_thead) {
+		aw_d1_intc_intr_disestablish(cookie);
+	}
 
 	TAILQ_REMOVE(&sc->sc_isrcs[irqno].is_list, ih, ih_list);
 	if (ih->ih_name != NULL)
