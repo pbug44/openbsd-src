@@ -64,6 +64,10 @@ I used the bflb-iot-tool at BAUD 115200, which worked well.
 
 Booting for first time:
 
+You then have to connect the UART pins to the Ox64's pins 32 (TX-GPIO16)
+and pins 31 (RX-GPIO17).  No need to press any buttons here, apply power
+and it should go.
+
 I didn't insert a microSD card the first time as the u-boot should be on
 flash.  The CP2102 I have (Waveshare) did not work at BAUD 2,000,000 and I
 got a lot of garble.  Settig the settings to different did not work either.
