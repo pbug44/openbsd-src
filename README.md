@@ -3,8 +3,8 @@ My experience with the BL808 SoC driven Pine64 Ox64
 
 
 Pin layout (of what's important) for the BL808/Pine64 Ox64:
-
-                                mUSB (power)
+<pre>      
+                            mUSB (power)
 
                         +-------------------+
 UART0_TX        GPIO14  1                  40
@@ -49,7 +49,7 @@ GPIO26                  20                 21   GPIO29
                         +-------------------+
 
                                 USB-C
-
+</pre>
 
 Flashing:
 
@@ -91,7 +91,8 @@ be pin 13 right, and UART RX (fourth from top right) which would be pin 12 on
 the right.
 
 Here is a quick ascii drawing of my ESP32-WROOM (as looked down on it):
-                                         
+
+<pre>
                                 WIFI
                         +-------------------+
 EN (pin 14 left)        14                 15
@@ -125,6 +126,8 @@ GND (pin 2 left)        2                  27           GND (pin 2 right)
                                 +--+
                              USB-C (power)
 
+</pre>
+
 After this process I'm able to boot into OpenBSD/riscv64 but no drivers are
 detected other than the simplebus/mainbus/cpu (yikes).  BTW I bought three
 ESP32's from Alibaba back last year, today I'd probably not do that again,
@@ -134,6 +137,7 @@ On to OpenBSD from an old C906/Allwinner-D1 install (thanks Mark!):
 
 Here is a dmesg (of an old 7.4-current OpenBSD).
 
+<pre>
 ----->
 Copyright (c) 1982, 1986, 1989, 1991, 1993
         The Regents of the University of California.  All rights reserved.
@@ -189,7 +193,8 @@ scsibus0 at softraid0: 256 targets
 root on rd0a swap on rd0b dump on rd0b
 WARNING: CHECK AND RESET THE DATE!
 <-------
-
+</pre>
+  
 Notice no Userland (due to no serial UART driver).
 
 I had to use this command sequence to boot into OpenBSD loader (bootriscv64.efi):
