@@ -1,4 +1,4 @@
-<img src="https://mainrechner.de/ox64-esp32-usb-uart.jpg" alt="An ESP32 for console work on Ox64" width="320">
+<img src="http://mainrechner.de/ox64-esp32-usb-uart.jpg" alt="An ESP32 for console work on Ox64" width="640">
 
 My experience with the BL808 SoC driven Pine64 Ox64
 ---------------------------------------------------
