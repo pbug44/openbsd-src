@@ -612,11 +612,19 @@ machdep(void)
 	/*
 	 * The kernel expects to be loaded into a block of memory aligned
 	 * on a 2MB boundary.  We allocate a block of 64MB of memory, which
-	 * gives us plenty of room for growth.
+	 * gives us plenty of room for growth.  Step down to 8MB if we can't
+	 * allocate.
 	 */
 	if (efi_memprobe_find(EFI_SIZE_TO_PAGES(64 * 1024 * 1024),
-	    0x200000, &addr) != EFI_SUCCESS)
-		printf("Can't allocate memory\n");
+	    0x200000, &addr) != EFI_SUCCESS) {
+		/* try again */
+		if (efi_memprobe_find(EFI_SIZE_TO_PAGES(8 * 1024 * 1024),
+			0x200000, &addr) != EFI_SUCCESS)
+			printf("Can't allocate memory\n");
+	}
+
+
+
 	efi_loadaddr = addr;
 
 	efi_timer_init();

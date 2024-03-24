@@ -151,6 +151,12 @@ device	stftemp
 attach	stftemp at fdt
 file	arch/riscv64/dev/stftemp.c		stftemp
 
+# Bouffalo Labs BL-808 UART
+device	bflbuart
+attach	bflbuart at fdt
+file	arch/riscv64/dev/bflbuart.c		blfbuart
+
+
 # Paravirtual device bus and virtio
 include "dev/pv/files.pv"
 

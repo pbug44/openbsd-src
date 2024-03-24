@@ -60,6 +60,7 @@ sfclock*	at fdt? early 1 # PRCI
 sfcc*		at fdt? early 1	# L2 Cache Controller
 sfuart*		at fdt?
 
+
 # StarFive SoCs
 stfclock*	at fdt? early 1
 stfpcie*	at fdt?
@@ -106,6 +107,11 @@ iic*		at ociic?
 dapmic*		at iic?
 
 xhci*		at fdt?
+
+
+# Bouffalo Labs BL-808 (Pine64 Ox64)
+bflbuart*	at fdt?
+
 
 # PCI
 ppb*		at pci?		# PCI-PCI bridges

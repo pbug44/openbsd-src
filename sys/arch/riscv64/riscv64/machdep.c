@@ -179,6 +179,7 @@ fdt_find_cons(const char *name)
 
 void	com_fdt_init_cons(void);
 void	sfuart_init_cons(void);
+void	bflbuart_init_cons(void);
 
 void
 consinit(void)
@@ -192,6 +193,7 @@ consinit(void)
 
 	com_fdt_init_cons();
 	sfuart_init_cons();
+	bflbuart_init_cons();
 }
 
 void
