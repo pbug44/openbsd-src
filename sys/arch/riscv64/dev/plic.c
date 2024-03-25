@@ -202,8 +202,11 @@ plic_attach(struct device *parent, struct device *dev, void *aux)
 	    faa->fa_reg[0].size, 0, &sc->sc_ioh))
 		panic("%s: bus_space_map failed!", __func__);
 
-	sc->sc_isrcs = mallocarray(PLIC_MAX_IRQS, sizeof(struct plic_irqsrc),
+	sc->sc_isrcs = mallocarray(sc->sc_ndev, sizeof(struct plic_irqsrc),
 			M_DEVBUF, M_ZERO | M_NOWAIT);
+
+	if (sc->sc_isrcs == NULL)
+		panic("%s: mallocarray failed!", __func__);
 
 	for (irq = 1; irq <= sc->sc_ndev; irq++) {
 		TAILQ_INIT(&sc->sc_isrcs[irq].is_list);
@@ -340,7 +343,6 @@ plic_irq_handler(void *frame)
 		bus_space_write_4(sc->sc_iot, sc->sc_ioh,
 				PLIC_CLAIM(sc, cpu), pending);
 
-//#define DEBUG_INTC
 #ifdef DEBUG_INTC
 		if (handled == 0) {
 			printf("plic handled == 0 on pending %d\n", pending);
@@ -409,7 +411,7 @@ plic_intr_establish(int irqno, int level, struct cpu_info *ci,
 	struct plic_intrhand *ih;
 	u_long sie;
 
-	if (irqno < 0 || irqno >= PLIC_MAX_IRQS)
+	if (irqno < 0 || irqno >= sc->sc_ndev)
 		panic("plic_intr_establish: bogus irqnumber %d: %s",
 		    irqno, name);
 

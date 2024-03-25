@@ -156,6 +156,10 @@ device	bflbuart
 attach	bflbuart at fdt
 file	arch/riscv64/dev/bflbuart.c		blfbuart
 
+# Bouffalo Labs BL-808 Timer
+device	bflbtimer
+attach	bflbtimer at fdt
+file	arch/riscv64/dev/bflbtimer.c		bflbtimer
 
 # Paravirtual device bus and virtio
 include "dev/pv/files.pv"
